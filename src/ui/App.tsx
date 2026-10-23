@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useApp, useBoxMetrics, useInput, useWindowSize, type DOMElement } from 'ink';
 import { renderBanner, renderMarkdown, type CvContent, type Header } from '../content.js';
 
-const MAX_TEXT_WIDTH = 100;
+/** Comfortable reading width; wider terminals get margin, not longer lines. */
+const MAX_TEXT_WIDTH = 80;
 const MIN_COLUMNS = 40;
 const MIN_ROWS = 12;
 /** Content rows to keep free before giving up the ASCII-art banner. */
