@@ -20,7 +20,7 @@ concurrency:
 
 env:
   # --- CONFIG: the app's folder in homelab-apps-gitops (apps/<APP>/) = its onboarded name ---
-  APP: CHANGEME
+  APP: cv-ssh
   REGISTRY: ghcr.io/pedroshaina
 
 jobs:
@@ -28,11 +28,13 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # Replace with your app's tests.
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          go-version-file: go.mod
-      - run: go vet ./... && go test ./...
+          node-version: 24
+      # corepack provides the pnpm version pinned in package.json's packageManager.
+      - run: corepack enable && pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
 
   build:
     needs: test
@@ -45,7 +47,7 @@ jobs:
       matrix:
         # --- CONFIG: one entry per image, published as ghcr.io/pedroshaina/<name> ---
         image:
-          - {name: homelab-apps-ci-cd-template, context: ., file: Dockerfile, build-args: ""}
+          - {name: cv-ssh, context: ., file: Dockerfile, build-args: ""}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1

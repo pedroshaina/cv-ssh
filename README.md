@@ -1,74 +1,74 @@
-# homelab-apps-ci-cd-template
+# cv-ssh
 
-The homelab's release pipeline for its own apps (homelab ADR-0024). Create an app repository
-from this template and it gets the pipeline from its first commit.
-
-## What this is
+My CV as a terminal app served over SSH, in the spirit of `ssh terminal.shop`. Visitors connect
+with any SSH client and browse it as a TUI: no account, no key, no password.
 
 ```
-PR → review → merge to master
-  → test, build and push every image to GHCR (tag = commit SHA)
-  → release commit in homelab-apps-gitops: apps/<APP>/kustomization.yaml pins the new
-    <image>:<sha>@sha256:<digest>
-  → Argo CD deploys it
+ssh -p 2222 localhost   # when running locally
 ```
 
-The release job (`promote` in `.github/workflows/release.yaml`) acts as the GitHub App
-`homelab-apps-release`: an identity, not a service. Each run exchanges the App's private key for a
-1-hour token that can write to `homelab-apps-gitops` only, and its commits show as
-`homelab-apps-release[bot]`. Nothing runs outside GitHub Actions. Pull requests test and build
-the images without pushing them.
+## How it works
 
-## New app checklist
+There is no shell on the other end. The SSH server *is* the app:
 
-The full walkthrough, with example manifests and checks after each step: homelab
-`docs/onboarding-an-app.md`. In short:
+- [`ssh2`](https://github.com/mscdotnet/ssh2) accepts every connection (any auth method), waits
+  for the client's PTY request and opens the shell channel.
+- Each session mounts an [Ink](https://github.com/vadimdemedes/ink) (React for the terminal)
+  app on that channel. `src/terminal.ts` makes the channel look like a TTY to Ink: window size,
+  resize events, raw input and `\n` → `\r\n` (there is no kernel PTY to do it).
+- The content is Markdown, rendered to ANSI with
+  [`marked-terminal`](https://github.com/mikaelbr/marked-terminal); the name banner is
+  [`figlet`](https://github.com/patorjk/figlet.js).
 
-1. GitHub → New repository → template `homelab-apps-ci-cd-template`. Public or private: private
-   images are pulled with the cluster node's own GHCR credentials, nothing per app.
-2. Replace the placeholder app (`main.go`) and the `Dockerfile`; keep the deployment contract
-   (below).
-3. In `.github/workflows/release.yaml`, edit only the two CONFIG blocks: `APP` (the app's folder
-   in `homelab-apps-gitops`, which is also its onboarded name) and the `image` matrix (one entry
-   per image, published as `ghcr.io/pedroshaina/<name>`). Replace the `test` job's steps with
-   your app's tests.
-4. Settings → Secrets and variables → Actions: variable `HOMELAB_APPS_CLIENT_ID` and secret
-   `HOMELAB_APPS_PRIVATE_KEY` (the App's Client ID and private key, from the owner's 1Password).
-   Templates don't copy secrets or variables.
-5. In `homelab-apps-gitops`, a PR adding `apps/<APP>/`: the manifests, naming your images
-   without tag (`image: ghcr.io/pedroshaina/<name>`), and a `kustomization.yaml` made with the
-   tool, from the folder:
+## Editing the CV
 
-   ```bash
-   kustomize create --resources "$(ls *.yaml | paste -sd, -)"
-   ```
+Everything is in `content/`, read on every connection (no restart needed):
 
-   No `images:` entry yet: the first release adds it. Rules: that repo's `CLUSTER-POLICIES.md`
-   (conventions 8, 11 and 12).
-6. Merge to `master` here: the first release pins the images in that `kustomization.yaml`.
-7. The onboarding line in `homelab-platform-gitops` `components/teams/values.yaml` — only now
-   does Argo CD deploy the app, already pinned.
+| File | Becomes |
+|---|---|
+| `_header.md` | The banner: its `# Heading` is the name, the rest the tagline |
+| `NN-title.md` | A tab, ordered by `NN`; `03-side-projects.md` → "Side projects" |
 
-## Releasing, rolling back, pausing
+Files starting with `_` are never tabs.
 
-- **Release:** merge to `master`. Releases of one repo run one at a time, in merge order; a newer
-  pending release replaces an older pending one.
-- **Roll back:** revert the release commit in `homelab-apps-gitops` (a PR there). Then fix
-  forward here; the next merge releases again.
-- **Pause:** Actions → release → Disable workflow. Releases by hand meanwhile: homelab
-  `docs/operations.md` (`kustomize edit set image`).
-- **A release didn't arrive:** the run's summary lists the published images and the release
-  commit; a red `promote` names the missing folder or image.
+## Development
 
-## Deployment contract
+Needs Node 24 and pnpm (`corepack enable`).
 
-- `GET /health` (alive) and `GET /ready` (can serve traffic).
-- Graceful shutdown on SIGTERM.
-- JSON logs on stdout.
-- Runs as a non-root user; `linux/amd64` images.
-- Configuration through environment variables.
+```bash
+pnpm install
+pnpm dev          # server on :2222 with pretty logs, restarts on code changes
+pnpm test         # unit tests + end-to-end SSH sessions against a real server
+pnpm typecheck
+```
 
-## Updating a copy
+Keys: ←/→ (or h/l, Tab) sections, 1–9 jump, ↑/↓ (or j/k) scroll, space/b page, g/G top/bottom,
+q to quit.
 
-The header comments (`release v1`, `lint v1`) tell which template version a repository carries.
-To update, copy the newer workflow and keep your CONFIG blocks and `test` steps.
+## Configuration
+
+Environment variables, all optional:
+
+| Variable | Default | |
+|---|---|---|
+| `PORT` | `2222` | SSH port |
+| `HEALTH_PORT` | `8080` | HTTP `GET /health` and `GET /ready` |
+| `HOST_KEY_PATH` | `.data/host_ed25519` | Server host key; generated if missing |
+| `CONTENT_DIR` | `content` | Markdown directory |
+| `IDLE_TIMEOUT_SECONDS` | `180` | Disconnect after this long without a keypress |
+| `MAX_SESSIONS` | `20` | Concurrent sessions in total |
+| `MAX_SESSIONS_PER_IP` | `2` | Concurrent sessions per client IP; `0` disables |
+| `HANDSHAKE_TIMEOUT_SECONDS` | `30` | Time to connect and authenticate |
+| `LOG_LEVEL` | `info` | pino level; logs are JSON lines on stdout |
+
+The host key is the server's identity: keep it stable, or returning visitors get a "remote host
+identification has changed" warning.
+
+## Container and releases
+
+`Dockerfile` builds a `linux/amd64` image on distroless Node 24, running as non-root with the
+content baked in. On `SIGTERM` the server stops accepting connections, tells open sessions it is
+restarting, and exits once they have left.
+
+A merge to `master` tests, builds and publishes the image, then hands it to the homelab's GitOps
+repository for deployment (`.github/workflows/release.yaml`).
