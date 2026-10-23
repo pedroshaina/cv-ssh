@@ -31,6 +31,10 @@ Everything is in `content/`, read on every connection (no restart needed):
 
 Files starting with `_` are never tabs.
 
+Paragraphs and list items are re-wrapped to the visitor's terminal (at most 80 columns), so line
+breaks in the source don't matter: consecutive lines join into one. Put things that must stay on
+separate lines in a list (`- **Email:** …`) or join them with ` · `.
+
 ## Development
 
 Needs Node 24 and pnpm (`corepack enable`).

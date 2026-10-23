@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import figlet from 'figlet';
 import { Marked, type MarkedExtension } from 'marked';
 import { markedTerminal } from 'marked-terminal';
+import wrapAnsi from 'wrap-ansi';
 
 export interface Section {
   title: string;
@@ -70,27 +71,37 @@ export function renderBanner(name: string, maxWidth: number): string | undefined
   return undefined;
 }
 
+/** Columns a top-level list item's text starts at: the list's tab (2) plus "* ". */
+const LIST_TEXT_INDENT = 4;
+
 // Workarounds for marked-terminal quirks. Returning false falls back to
 // marked-terminal's own renderer.
-const fixes: MarkedExtension = {
-  renderer: {
-    // Tight list items are rendered verbatim, so `- **Email:** x` would show
-    // literal asterisks. Render their inline tokens instead.
-    text(token) {
-      return 'tokens' in token && token.tokens ? this.parser.parseInline(token.tokens) : false;
+function fixes(width: number): MarkedExtension {
+  return {
+    renderer: {
+      // Tight list items are rendered verbatim: `- **Email:** x` would show
+      // literal asterisks, and the source's line breaks would be kept instead
+      // of reflowing like paragraphs do. Render their inline tokens, turn soft
+      // breaks into spaces and wrap to the width left after the bullet;
+      // marked-terminal then indents the continuation lines.
+      text(token) {
+        if (!('tokens' in token && token.tokens)) return false;
+        const inline = this.parser.parseInline(token.tokens).replace(/\s*\n\s*/g, ' ');
+        return wrapAnsi(inline, Math.max(20, width - LIST_TEXT_INDENT));
+      },
+      // A bare email address renders as "you@x.com (mailto:you@x.com)". Making
+      // href match the text lets marked-terminal print it once.
+      link(token) {
+        if (token.href === `mailto:${token.text}`) token.href = token.text;
+        return false;
+      },
     },
-    // A bare email address renders as "you@x.com (mailto:you@x.com)". Making
-    // href match the text lets marked-terminal print it once.
-    link(token) {
-      if (token.href === `mailto:${token.text}`) token.href = token.text;
-      return false;
-    },
-  },
-};
+  };
+}
 
 export function renderMarkdown(markdown: string, width: number): string {
   // @types/marked-terminal still describes v6; v7 returns a marked extension.
   const terminal = markedTerminal({ width, reflowText: true, tab: 2, showSectionPrefix: false }) as unknown as MarkedExtension;
-  const marked = new Marked(terminal, fixes);
+  const marked = new Marked(terminal, fixes(width));
   return (marked.parse(markdown) as string).trimEnd();
 }
