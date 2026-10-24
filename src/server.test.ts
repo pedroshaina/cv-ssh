@@ -10,6 +10,7 @@ import { stripVTControlCharacters } from 'node:util';
 import ssh2, { type Client, type ClientChannel } from 'ssh2';
 import type { Config } from './config/config.schema.js';
 import { loadConfig } from './config/load-config.js';
+import { createLogger } from './logging/create-logger.js';
 import { startServer, type CvServer } from './server.js';
 
 function tempDir(): string {
@@ -28,7 +29,7 @@ async function start(overrides: Partial<Config> = {}): Promise<{ server: CvServe
     hostKeyPath: join(tempDir(), 'host_key'),
     contentDir,
     ...overrides,
-  });
+  }, createLogger('silent'));
   return { server, port: (await server.listening).port };
 }
 

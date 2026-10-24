@@ -2,15 +2,16 @@
 import './env.js';
 import { loadConfig } from './config/load-config.js';
 import { createHealthServer } from './health.js';
-import { log } from './log.js';
+import { createLogger } from './logging/create-logger.js';
 import { startServer } from './server.js';
 
 const config = loadConfig();
-const server = startServer(config);
+const logger = createLogger(config.logLevel);
+const server = startServer(config, logger);
 
 const health = createHealthServer(server.isReady);
 health.listen(config.httpPort, config.listenHost, () => {
-  log.info({ port: config.httpPort }, 'health endpoints listening');
+  logger.info({ port: config.httpPort }, 'health endpoints listening');
 });
 
 // Kubernetes sends SIGTERM on rollouts. As PID 1 in the container, Node has no

@@ -5,7 +5,7 @@ import { dirname } from 'node:path';
 import ssh2, { type ServerChannel } from 'ssh2';
 import type { Config } from './config/config.schema.js';
 import { SessionLimiter } from './limits.js';
-import { log } from './log.js';
+import type { Logger } from './logging/create-logger.js';
 import { parseProxyHeader, type ProxySource } from './proxy.js';
 import { startCvSession, type CvSession } from './session.js';
 import type { WindowSize } from './terminal.js';
@@ -16,12 +16,12 @@ const { Server, utils } = ssh2;
  * The host key is the server's identity. If it changes, returning visitors get
  * a "REMOTE HOST IDENTIFICATION HAS CHANGED" warning, so it must persist.
  */
-function loadOrCreateHostKey(path: string): Buffer {
+function loadOrCreateHostKey(path: string, logger: Logger): Buffer {
   if (!existsSync(path)) {
     const { private: privateKey } = utils.generateKeyPairSync('ed25519');
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, privateKey, { mode: 0o600 });
-    log.warn({ path }, 'generated new host key');
+    logger.warn({ path }, 'generated new host key');
   }
   return readFileSync(path);
 }
@@ -62,15 +62,15 @@ export interface CvServer {
   shutdown(): Promise<void>;
 }
 
-export function startServer(config: Config): CvServer {
-  const hostKey = loadOrCreateHostKey(config.hostKeyPath);
+export function startServer(config: Config, logger: Logger): CvServer {
+  const hostKey = loadOrCreateHostKey(config.hostKeyPath, logger);
   const limiter = new SessionLimiter(config.maxSessions, config.maxSessionsPerIp);
   const sessions = new Set<CvSession>();
   let isListening = false;
   let shuttingDown = false;
 
   const server = new Server({ hostKeys: [hostKey] }, (client, info) => {
-    const connLog = log.child({ conn: randomBytes(4).toString('hex'), ip: info.ip });
+    const connLog = logger.child({ conn: randomBytes(4).toString('hex'), ip: info.ip });
     connLog.debug({ client: info.header.versions.software }, 'connection opened');
 
     // Drop clients that connect but never finish authenticating.
@@ -216,7 +216,7 @@ export function startServer(config: Config): CvServer {
       socket.off('data', onData);
       socket.pause();
       if (header.kind === 'invalid') {
-        log.warn({ peer: socket.remoteAddress, reason: header.reason }, 'connection dropped');
+        logger.warn({ peer: socket.remoteAddress, reason: header.reason }, 'connection dropped');
         socket.destroy();
         return;
       }
@@ -231,7 +231,7 @@ export function startServer(config: Config): CvServer {
     tcp.listen(config.sshPort, config.listenHost, () => {
       const address = tcp.address() as AddressInfo;
       isListening = true;
-      log.info({ host: address.address, port: address.port }, 'cv-ssh listening');
+      logger.info({ host: address.address, port: address.port }, 'cv-ssh listening');
       resolve(address);
     });
   });
@@ -241,7 +241,7 @@ export function startServer(config: Config): CvServer {
     isReady: () => isListening && !shuttingDown,
     async shutdown() {
       shuttingDown = true;
-      log.info({ sessions: sessions.size }, 'shutting down');
+      logger.info({ sessions: sessions.size }, 'shutting down');
       // close() stops accepting and calls back once every existing connection
       // has closed, i.e. once visitors have received their goodbye and their
       // ssh client has hung up. Exiting earlier would cut that message off.
