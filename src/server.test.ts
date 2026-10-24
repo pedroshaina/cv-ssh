@@ -1,5 +1,5 @@
 // End-to-end: a real SSH client against a real server on a random port.
-import './env.js';
+import './terminal/force-color-env.js';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { connect as tcpConnect, createServer, type AddressInfo, type Socket } from 'node:net';
@@ -37,6 +37,8 @@ interface Visit {
   channel: ClientChannel;
   /** Everything received so far, with escape codes stripped. */
   output: () => string;
+  /** Everything received so far, escape codes included. */
+  rawOutput: () => string;
   waitFor: (text: string) => Promise<void>;
   exitCode: Promise<number | undefined>;
 }
@@ -84,7 +86,7 @@ function visit(port: number, { command, proxyHeader }: VisitOptions = {}): Promi
             waiters.push(check);
             check();
           });
-        resolve({ channel, output, waitFor, exitCode });
+        resolve({ channel, output, rawOutput: () => raw, waitFor, exitCode });
       };
       if (command) client.exec(command, onChannel);
       else client.shell({ term: 'xterm-256color', cols: 100, rows: 30 }, onChannel);
@@ -104,6 +106,19 @@ test('a visitor browses the CV and quits', async () => {
     session.channel.write('q');
     assert.equal(await session.exitCode, 0);
     assert.match(session.output(), /Thanks for stopping by!/);
+  } finally {
+    await server.shutdown();
+  }
+});
+
+test('visitors get colour, even though the server has no TTY', async () => {
+  const { server, port } = await start();
+  try {
+    const session = await visit(port);
+    await session.waitFor('Hello from the test.');
+    assert.match(session.rawOutput(), /\x1b\[(3\d|38;5;\d+)m/);
+    session.channel.write('q');
+    await session.exitCode;
   } finally {
     await server.shutdown();
   }
