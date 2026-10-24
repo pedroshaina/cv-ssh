@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer, isIP, type AddressInfo, type Socket } from 'node:net';
 import { dirname } from 'node:path';
 import ssh2, { type ServerChannel } from 'ssh2';
-import type { Config } from './config.js';
+import type { Config } from './config/config.schema.js';
 import { SessionLimiter } from './limits.js';
 import { log } from './log.js';
 import { parseProxyHeader, type ProxySource } from './proxy.js';
@@ -228,7 +228,7 @@ export function startServer(config: Config): CvServer {
 
   const listening = new Promise<AddressInfo>((resolve, reject) => {
     tcp.once('error', reject);
-    tcp.listen(config.port, config.host, () => {
+    tcp.listen(config.sshPort, config.listenHost, () => {
       const address = tcp.address() as AddressInfo;
       isListening = true;
       log.info({ host: address.address, port: address.port }, 'cv-ssh listening');

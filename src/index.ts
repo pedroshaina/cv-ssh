@@ -1,15 +1,16 @@
 // Must stay the first import: it sets colour env vars before chalk loads.
 import './env.js';
-import { config } from './config.js';
+import { loadConfig } from './config/load-config.js';
 import { createHealthServer } from './health.js';
 import { log } from './log.js';
 import { startServer } from './server.js';
 
+const config = loadConfig();
 const server = startServer(config);
 
 const health = createHealthServer(server.isReady);
-health.listen(config.healthPort, config.host, () => {
-  log.info({ port: config.healthPort }, 'health endpoints listening');
+health.listen(config.httpPort, config.listenHost, () => {
+  log.info({ port: config.httpPort }, 'health endpoints listening');
 });
 
 // Kubernetes sends SIGTERM on rollouts. As PID 1 in the container, Node has no

@@ -8,7 +8,8 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { stripVTControlCharacters } from 'node:util';
 import ssh2, { type Client, type ClientChannel } from 'ssh2';
-import { config, type Config } from './config.js';
+import type { Config } from './config/config.schema.js';
+import { loadConfig } from './config/load-config.js';
 import { startServer, type CvServer } from './server.js';
 
 function tempDir(): string {
@@ -21,9 +22,9 @@ async function start(overrides: Partial<Config> = {}): Promise<{ server: CvServe
   writeFileSync(join(contentDir, '01-about.md'), '# About\n\nHello from the test.\n');
   writeFileSync(join(contentDir, '02-contact.md'), '# Contact\n');
   const server = startServer({
-    ...config,
-    host: '127.0.0.1',
-    port: 0,
+    ...loadConfig({}),
+    listenHost: '127.0.0.1',
+    sshPort: 0,
     hostKeyPath: join(tempDir(), 'host_key'),
     contentDir,
     ...overrides,

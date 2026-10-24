@@ -27,7 +27,8 @@
     "pino": "^10.4.0",
     "react": "^19.3.1",
     "ssh2": "^1.17.0",
-    "wrap-ansi": "^10.0.2"
+    "wrap-ansi": "^10.0.2",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/marked-terminal": "^6.1.1",
