@@ -2,20 +2,20 @@
 import './env.js';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync } from 'node:fs';
-import { createServer, type AddressInfo } from 'node:net';
+import { connect as tcpConnect, createServer, type AddressInfo, type Socket } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { stripVTControlCharacters } from 'node:util';
 import ssh2, { type Client, type ClientChannel } from 'ssh2';
-import { config } from './config.js';
+import { config, type Config } from './config.js';
 import { startServer, type CvServer } from './server.js';
 
 function tempDir(): string {
   return mkdtempSync(join(tmpdir(), 'cv-ssh-test-'));
 }
 
-async function start(): Promise<{ server: CvServer; port: number }> {
+async function start(overrides: Partial<Config> = {}): Promise<{ server: CvServer; port: number }> {
   const contentDir = tempDir();
   writeFileSync(join(contentDir, '_header.md'), '# Ada Lovelace\n\nAnalyst\n');
   writeFileSync(join(contentDir, '01-about.md'), '# About\n\nHello from the test.\n');
@@ -26,6 +26,7 @@ async function start(): Promise<{ server: CvServer; port: number }> {
     port: 0,
     hostKeyPath: join(tempDir(), 'host_key'),
     contentDir,
+    ...overrides,
   });
   return { server, port: (await server.listening).port };
 }
@@ -38,8 +39,22 @@ interface Visit {
   exitCode: Promise<number | undefined>;
 }
 
-/** Connects and opens a shell (with a PTY) or runs a command (without one). */
-function visit(port: number, command?: string): Promise<Visit> {
+interface VisitOptions {
+  /** Run this instead of opening a shell (with a PTY). */
+  command?: string;
+  /** Sent before SSH, as a relay would. */
+  proxyHeader?: string;
+}
+
+/** A TCP connection that starts with `proxyHeader`, as from a relay. */
+function relayed(port: number, proxyHeader: string): Socket {
+  const socket = tcpConnect(port, '127.0.0.1');
+  socket.write(proxyHeader);
+  return socket;
+}
+
+/** Connects and opens a shell or runs a command. */
+function visit(port: number, { command, proxyHeader }: VisitOptions = {}): Promise<Visit> {
   return new Promise((resolve, reject) => {
     const client = new ssh2.Client();
     client.on('error', reject);
@@ -72,7 +87,8 @@ function visit(port: number, command?: string): Promise<Visit> {
       if (command) client.exec(command, onChannel);
       else client.shell({ term: 'xterm-256color', cols: 100, rows: 30 }, onChannel);
     });
-    client.connect({ host: '127.0.0.1', port, username: 'visitor' });
+    const sock = proxyHeader === undefined ? undefined : relayed(port, proxyHeader);
+    client.connect({ host: '127.0.0.1', port, username: 'visitor', sock });
   });
 }
 
@@ -94,7 +110,7 @@ test('a visitor browses the CV and quits', async () => {
 test('commands are refused', async () => {
   const { server, port } = await start();
   try {
-    const session = await visit(port, 'uptime');
+    const session = await visit(port, { command: 'uptime' });
     assert.equal(await session.exitCode, 1);
     assert.match(session.output(), /Commands are not supported/);
   } finally {
@@ -167,6 +183,35 @@ test('sftp and other subsystems are refused', async () => {
     await refusal((cb) => client.subsys('netconf', cb));
   } finally {
     client.end();
+    await server.shutdown();
+  }
+});
+
+const fromRelay = (ip: string) => `PROXY TCP4 ${ip} 10.0.0.5 51234 22\r\n`;
+
+test('behind a relay, the per-IP limit applies to the visitor address in the PROXY header', { timeout: 5000 }, async () => {
+  const { server, port } = await start({ proxyProtocol: true, maxSessionsPerIp: 1 });
+  try {
+    // All three come from 127.0.0.1; only the header tells them apart.
+    const first = await visit(port, { proxyHeader: fromRelay('203.0.113.7') });
+    await first.waitFor('Hello from the test.');
+    const other = await visit(port, { proxyHeader: fromRelay('198.51.100.9') });
+    await other.waitFor('Hello from the test.');
+
+    const again = await visit(port, { proxyHeader: fromRelay('203.0.113.7') });
+    assert.equal(await again.exitCode, 1);
+    assert.match(again.output(), /maximum number of sessions/);
+  } finally {
+    await server.shutdown();
+  }
+});
+
+test('behind a relay, connections without a PROXY header are dropped', async () => {
+  const { server, port } = await start({ proxyProtocol: true });
+  try {
+    await assert.rejects(visit(port));
+    await assert.rejects(visit(port, { proxyHeader: 'PROXY TCP4 forged\r\n' }));
+  } finally {
     await server.shutdown();
   }
 });
