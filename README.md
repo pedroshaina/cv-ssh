@@ -67,7 +67,16 @@ Environment variables, all optional:
 | `MAX_SESSIONS` | `20` | Concurrent sessions in total |
 | `MAX_SESSIONS_PER_IP` | `2` | Concurrent sessions per client IP; `0` disables |
 | `HANDSHAKE_TIMEOUT_SECONDS` | `30` | Time to connect and authenticate |
+| `PROXY_PROTOCOL` | `false` | Require a PROXY protocol header (v1 or v2) on every connection; see below |
 | `LOG_LEVEL` | `info` | pino level; logs are JSON lines on stdout |
+
+Behind a relay (a TCP proxy in front of the server), every connection comes from the relay's
+address, so the per-IP limit and the logs see one visitor. Set `PROXY_PROTOCOL=true` and have the
+relay send a PROXY header (HAProxy `send-proxy-v2`, nginx `proxy_protocol on`): the server then
+uses the visitor address it carries. Connections without a valid header are dropped. The header
+itself is trusted, so only the relay must be able to reach the SSH port (a network policy):
+anyone else who can would be able to claim any address. A header with no address (HAProxy's
+health checks) keeps the relay's.
 
 The host key is the server's identity: keep it stable, or returning visitors get a "remote host
 identification has changed" warning.
