@@ -2,11 +2,12 @@
 import './env.js';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync } from 'node:fs';
+import { createServer, type AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { stripVTControlCharacters } from 'node:util';
-import ssh2, { type ClientChannel } from 'ssh2';
+import ssh2, { type Client, type ClientChannel } from 'ssh2';
 import { config } from './config.js';
 import { startServer, type CvServer } from './server.js';
 
@@ -112,4 +113,60 @@ test('shutdown sends open sessions off politely', async () => {
   assert.equal(await session.exitCode, 0);
   assert.match(session.output(), /The server is restarting/);
   await shutdown;
+});
+
+/** Connects and authenticates, without opening any channel. */
+function connect(port: number): Promise<Client> {
+  return new Promise((resolve, reject) => {
+    const client = new ssh2.Client();
+    client.on('error', reject);
+    client.on('ready', () => resolve(client));
+    client.connect({ host: '127.0.0.1', port, username: 'visitor' });
+  });
+}
+
+/** Resolves with the error a client call reports, or fails if it succeeds. */
+function refusal(call: (callback: (err?: Error) => void) => void): Promise<Error> {
+  return new Promise((resolve, reject) =>
+    call((err) => (err ? resolve(err) : reject(new Error('the server allowed it')))),
+  );
+}
+
+test('port forwarding is refused, so the server is no proxy', async () => {
+  // Something reachable from the server, as a LAN host would be.
+  let reached = false;
+  const target = createServer((socket) => {
+    reached = true;
+    socket.destroy();
+  });
+  await new Promise<void>((done) => target.listen(0, '127.0.0.1', done));
+  const targetPort = (target.address() as AddressInfo).port;
+
+  const { server, port } = await start();
+  const client = await connect(port);
+  try {
+    // ssh -L / -D / -W
+    await refusal((cb) => client.forwardOut('127.0.0.1', 12345, '127.0.0.1', targetPort, cb));
+    // ssh -R
+    await refusal((cb) => client.forwardIn('127.0.0.1', 0, cb));
+    // ssh -L to a Unix socket, e.g. a container runtime's
+    await refusal((cb) => client.openssh_forwardOutStreamLocal('/var/run/docker.sock', cb));
+    assert.equal(reached, false);
+  } finally {
+    client.end();
+    target.close();
+    await server.shutdown();
+  }
+});
+
+test('sftp and other subsystems are refused', async () => {
+  const { server, port } = await start();
+  const client = await connect(port);
+  try {
+    await refusal((cb) => client.sftp(cb));
+    await refusal((cb) => client.subsys('netconf', cb));
+  } finally {
+    client.end();
+    await server.shutdown();
+  }
 });

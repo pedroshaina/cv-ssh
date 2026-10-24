@@ -19,6 +19,10 @@ There is no shell on the other end. The SSH server *is* the app:
 - The content is Markdown, rendered to ANSI with
   [`marked-terminal`](https://github.com/mikaelbr/marked-terminal); the name banner is
   [`figlet`](https://github.com/patorjk/figlet.js).
+- The shell is all it offers. Commands get a one-line refusal. Port forwarding (`-L`, `-D`, `-W`,
+  `-R`, Unix sockets), sftp and other subsystems, and agent and X11 forwarding are rejected. Each
+  forwarding attempt is logged at `warn` as `forwarding refused`. A visitor's client never sends
+  one, so every such line means someone is probing.
 
 ## Editing the CV
 

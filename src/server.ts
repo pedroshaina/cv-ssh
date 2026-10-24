@@ -72,6 +72,27 @@ export function startServer(config: Config): CvServer {
     client.on('ready', () => {
       clearTimeout(handshakeTimer);
 
+      // Forwarding would turn the server into a proxy into whatever network it
+      // runs in. ssh2 already rejects request types nobody listens for; these
+      // handlers make that explicit, so adding a listener elsewhere can't
+      // silently enable it, and log each attempt. No real visitor's ssh client
+      // sends these, so every line is someone probing.
+      client.on('tcpip', (_accept, reject, { destIP, destPort }) => {
+        connLog.warn({ kind: 'direct-tcpip', dest: `${destIP}:${destPort}` }, 'forwarding refused');
+        reject();
+      });
+      client.on('openssh.streamlocal', (_accept, reject, { socketPath }) => {
+        connLog.warn({ kind: 'direct-streamlocal', dest: socketPath }, 'forwarding refused');
+        reject();
+      });
+      client.on('request', (_accept, reject, name, info) => {
+        if (!name.startsWith('cancel-')) {
+          const bind = 'socketPath' in info ? info.socketPath : `${info.bindAddr}:${info.bindPort}`;
+          connLog.warn({ kind: name, bind }, 'forwarding refused');
+        }
+        reject?.();
+      });
+
       client.on('session', (acceptSession) => {
         const session = acceptSession();
         let size: WindowSize | undefined;
@@ -122,6 +143,22 @@ export function startServer(config: Config): CvServer {
           connLog.info({ command: exec.command }, 'exec refused');
           refuse(accept(), 'Commands are not supported here. Connect with plain ssh to browse the CV.');
         });
+
+        // Nothing but the shell is offered. sftp and other subsystems are worth
+        // a log line; agent and X11 forwarding are client settings some
+        // visitors have on everywhere, and env (LANG etc.) is sent by default.
+        session.on('sftp', (_accept, reject) => {
+          connLog.info({ subsystem: 'sftp' }, 'subsystem refused');
+          reject?.();
+        });
+        session.on('subsystem', (_accept, reject, { name }) => {
+          connLog.info({ subsystem: name }, 'subsystem refused');
+          reject?.();
+        });
+        session.on('auth-agent', (_accept, reject) => reject?.());
+        session.on('x11', (_accept, reject) => reject?.());
+        session.on('env', (_accept, reject) => reject?.());
+        session.on('signal', (_accept, reject) => reject?.());
       });
     });
 
