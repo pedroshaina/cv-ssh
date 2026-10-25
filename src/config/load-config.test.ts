@@ -74,3 +74,16 @@ test('every problem is reported, not just the first', () => {
     (error) => error instanceof ConfigError && /^PORT: /m.test(error.message) && /^LOG_LEVEL: /m.test(error.message),
   );
 });
+
+test('ports must be between 0 and 65535', () => {
+  assert.equal(loadConfig({ PORT: '65535', HEALTH_PORT: '0' }).sshPort, 65535);
+  assert.throws(() => loadConfig({ PORT: '70000' }), failsOn('PORT'));
+  assert.throws(() => loadConfig({ HEALTH_PORT: '65536' }), failsOn('HEALTH_PORT'));
+});
+
+test('timeouts and the session limit must be above 0, which would lock everyone out', () => {
+  for (const variableName of ['IDLE_TIMEOUT_SECONDS', 'HANDSHAKE_TIMEOUT_SECONDS', 'MAX_SESSIONS']) {
+    assert.throws(() => loadConfig({ [variableName]: '0' }), failsOn(variableName));
+  }
+  assert.equal(loadConfig({ MAX_SESSIONS_PER_IP: '0' }).maxSessionsPerIp, 0);
+});

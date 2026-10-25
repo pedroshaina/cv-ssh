@@ -1,31 +1,55 @@
 // Must stay the first import: it sets colour env vars before chalk loads.
 import './terminal/force-color-env.js';
-import { ConfigError, loadConfig } from './config/load-config.js';
+import type { AddressInfo } from 'node:net';
+import { loadConfig } from './config/load-config.js';
+import { loadContent } from './content/load-content.js';
 import { createHttpServer } from './http/create-http-server.js';
 import { createLogger } from './logging/create-logger.js';
 import { createSshServer } from './ssh/create-ssh-server.js';
 
-function loadConfigOrExit() {
+// The level is part of the config, so until that loads, log at the default.
+let logger = createLogger('info');
+
+/**
+ * Why the process died is the log line that matters most, so it goes out as
+ * JSON like every other line, where the cluster's log collector expects it.
+ */
+function exitWithFatal(error: unknown, message: string): never {
+  logger.fatal({ err: error }, message);
+  process.exit(1);
+}
+
+process.on('uncaughtException', (error) => exitWithFatal(error, 'uncaught exception'));
+process.on('unhandledRejection', (reason) => exitWithFatal(reason, 'unhandled rejection'));
+
+function orExit<Result>(failure: string, step: () => Result): Result {
   try {
-    return loadConfig();
+    return step();
   } catch (error) {
-    // No logger yet: its level is part of the config that just failed.
-    if (error instanceof ConfigError) {
-      console.error(`Invalid configuration:\n${error.message}`);
-      process.exit(1);
-    }
-    throw error;
+    exitWithFatal(error, failure);
   }
 }
 
-const config = loadConfigOrExit();
-const logger = createLogger(config.logLevel);
+const config = orExit('invalid configuration', () => loadConfig());
+logger = createLogger(config.logLevel);
+
+// Content is read again for every session, so edits show up without a
+// restart. Reading it once now stops a wrong CONTENT_DIR here, not at the
+// first visitor.
+orExit('content cannot be loaded', () => loadContent(config.contentDir));
+
 const sshServer = createSshServer(config, logger);
+await sshServer.listening.catch((error: unknown) => exitWithFatal(error, 'SSH port unavailable'));
 
 const httpServer = createHttpServer(sshServer.isReady);
-httpServer.listen(config.httpPort, config.listenHost, () => {
-  logger.info({ port: config.httpPort }, 'health endpoints listening');
-});
+await new Promise<void>((resolve, reject) => {
+  httpServer.once('error', reject);
+  httpServer.listen(config.httpPort, config.listenHost, () => {
+    httpServer.off('error', reject);
+    resolve();
+  });
+}).catch((error: unknown) => exitWithFatal(error, 'health port unavailable'));
+logger.info({ port: (httpServer.address() as AddressInfo).port }, 'health endpoints listening');
 
 // Kubernetes sends SIGTERM on rollouts. As PID 1 in the container, Node has no
 // default handler for it, so without this the pod would hang until SIGKILL.

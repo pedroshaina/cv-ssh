@@ -9,20 +9,33 @@ function emptyAsUnset<Schema extends z.ZodType>(schema: Schema) {
   return z.preprocess((value) => (value === '' ? undefined : value), schema);
 }
 
-function nonNegativeInteger(defaultValue: number) {
+function integerInRange(defaultValue: number, min: number, max: number, expected: string) {
   return emptyAsUnset(
     z
       .string()
       .default(String(defaultValue))
       .transform((raw, context) => {
         const value = Number(raw);
-        if (!Number.isInteger(value) || value < 0) {
-          context.addIssue({ code: 'custom', message: `expected a non-negative integer, got "${raw}"` });
+        if (!Number.isInteger(value) || value < min || value > max) {
+          context.addIssue({ code: 'custom', message: `expected ${expected}, got "${raw}"` });
           return z.NEVER;
         }
         return value;
       }),
   );
+}
+
+/** 0 lets the OS pick a free port, which tests rely on. */
+function port(defaultValue: number) {
+  return integerInRange(defaultValue, 0, 65535, 'a port from 0 to 65535');
+}
+
+function positiveInteger(defaultValue: number) {
+  return integerInRange(defaultValue, 1, Number.MAX_SAFE_INTEGER, 'a positive integer');
+}
+
+function nonNegativeInteger(defaultValue: number) {
+  return integerInRange(defaultValue, 0, Number.MAX_SAFE_INTEGER, 'a non-negative integer');
 }
 
 function text(defaultValue: string) {
@@ -46,14 +59,14 @@ function flag(defaultValue: boolean) {
 export const configSchema = z
   .object({
     HOST: text('0.0.0.0'),
-    PORT: nonNegativeInteger(2222),
-    HEALTH_PORT: nonNegativeInteger(8080),
+    PORT: port(2222),
+    HEALTH_PORT: port(8080),
     HOST_KEY_PATH: text('.data/host_ed25519'),
     CONTENT_DIR: text('content'),
-    IDLE_TIMEOUT_SECONDS: nonNegativeInteger(180),
-    MAX_SESSIONS: nonNegativeInteger(20),
+    IDLE_TIMEOUT_SECONDS: positiveInteger(180),
+    MAX_SESSIONS: positiveInteger(20),
     MAX_SESSIONS_PER_IP: nonNegativeInteger(2),
-    HANDSHAKE_TIMEOUT_SECONDS: nonNegativeInteger(30),
+    HANDSHAKE_TIMEOUT_SECONDS: positiveInteger(30),
     PROXY_PROTOCOL: flag(false),
     LOG_LEVEL: emptyAsUnset(
       z

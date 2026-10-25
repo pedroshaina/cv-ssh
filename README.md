@@ -57,6 +57,9 @@ q to quit.
 
 Environment variables, all optional. They are validated at startup: an invalid value stops the
 server with a message naming the variable, and an empty value counts as unset (the default applies).
+Ports must be 0 to 65535; the timeouts and `MAX_SESSIONS` must be at least 1. `CONTENT_DIR` is also
+read once at startup, so a missing or unreadable directory stops the server there rather than at
+the first visitor.
 
 | Variable | Default | |
 |---|---|---|
