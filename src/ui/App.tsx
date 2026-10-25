@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useApp, useBoxMetrics, useInput, useWindowSize, type DOMElement } from 'ink';
-import { renderBanner, renderMarkdown, type CvContent, type Header } from '../content.js';
+import type { CvContent, Header } from '../content/content.types.js';
+import { renderBanner } from '../rendering/render-banner.js';
+import { renderMarkdown } from '../rendering/render-markdown.js';
 
 /** Comfortable reading width; wider terminals get margin, not longer lines. */
 const MAX_TEXT_WIDTH = 80;
