@@ -25,13 +25,11 @@ async function start(overrides: Partial<Config> = {}): Promise<{ server: SshServ
   writeFileSync(join(contentDir, '02-contact.md'), '# Contact\n\nReach me by pigeon.\n');
   const server = createSshServer({
     ...loadConfig({}),
-    listenHost: '127.0.0.1',
-    sshPort: 0,
     hostKeyPath: join(tempDir(), 'host_key'),
     contentDir,
     ...overrides,
   }, createLogger('silent'));
-  return { server, port: (await server.listening).port };
+  return { server, port: (await server.listen(0, '127.0.0.1')).port };
 }
 
 interface Visit {
@@ -267,6 +265,18 @@ function refusal(call: (callback: (error?: Error) => void) => void): Promise<Err
     call((error) => (error ? resolve(error) : reject(new Error('the server allowed it')))),
   );
 }
+
+test('shutdown can be called again while it is running, and waits all the same', async () => {
+  const { server, port } = await start();
+  const session = await visit(port);
+  await session.waitFor('Hello from the test.');
+
+  const first = server.shutdown();
+  const second = server.shutdown();
+  assert.equal(second, first);
+  await second;
+  assert.match(session.output(), /The server is restarting/);
+});
 
 test('port forwarding is refused, so the server is no proxy', async () => {
   // Something reachable from the server, as a LAN host would be.

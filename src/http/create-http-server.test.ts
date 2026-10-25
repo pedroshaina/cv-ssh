@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import type { AddressInfo } from 'node:net';
 import { after, before, test } from 'node:test';
 import { createHttpServer } from './create-http-server.js';
 
@@ -8,10 +7,15 @@ const httpServer = createHttpServer(() => ready);
 let baseUrl: string;
 
 before(async () => {
-  await new Promise<void>((resolve) => httpServer.listen(0, '127.0.0.1', resolve));
-  baseUrl = `http://127.0.0.1:${(httpServer.address() as AddressInfo).port}`;
+  const { port } = await httpServer.listen(0, '127.0.0.1');
+  baseUrl = `http://127.0.0.1:${port}`;
 });
 after(() => httpServer.close());
+
+test('listening on a port already in use rejects', async () => {
+  const otherServer = createHttpServer(() => ready);
+  await assert.rejects(otherServer.listen(Number(new URL(baseUrl).port), '127.0.0.1'), { code: 'EADDRINUSE' });
+});
 
 test('/health is always 200', async () => {
   ready = false;
