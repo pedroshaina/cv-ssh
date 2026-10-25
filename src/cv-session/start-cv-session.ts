@@ -9,14 +9,17 @@ import { GOODBYE_MESSAGES } from './goodbye-messages.js';
 /** Mounts the CV app on one SSH shell channel; closes the channel when the app exits. */
 export function startCvSession(channel: ServerChannel, windowSize: WindowSize, options: CvSessionOptions): CvSession {
   const { logger } = options;
+  // Read per connection so content edits show up without a restart. Read
+  // first: if it throws, the channel is still untouched for the caller to
+  // refuse.
+  const content = loadContent(options.contentDir);
   const terminal = createTerminal(channel, windowSize);
   const startedAt = Date.now();
   const sectionsViewed = new Set<string>();
   let endReason: EndReason = 'quit';
 
-  // Read per connection so content edits show up without a restart.
   const inkInstance = mountApp(terminal, {
-    content: loadContent(options.contentDir),
+    content,
     onSectionView: (title) => sectionsViewed.add(title),
   });
 

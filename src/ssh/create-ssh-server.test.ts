@@ -170,6 +170,63 @@ test('typing keeps a visitor from being disconnected as idle', { timeout: 5000 }
   }
 });
 
+/** Resolves once the server has closed `socket`. */
+function closed(socket: Socket): Promise<void> {
+  return new Promise((resolveClose) => {
+    socket.on('error', () => {});
+    socket.once('close', () => resolveClose());
+    // Discard what the server sends: a paused socket never reports its close.
+    socket.resume();
+  });
+}
+
+test('a client that sends one byte and stalls is dropped', { timeout: 5000 }, async () => {
+  const { server, port } = await start({ handshakeTimeoutMs: 300 });
+  try {
+    const stalled = tcpConnect(port, '127.0.0.1');
+    stalled.write('S');
+    await closed(stalled);
+  } finally {
+    await server.shutdown();
+  }
+});
+
+test('a client that authenticates but never opens a shell is dropped', { timeout: 5000 }, async () => {
+  const { server, port } = await start({ handshakeTimeoutMs: 300 });
+  try {
+    const client = await connect(port);
+    await new Promise<void>((resolveClose) => client.once('close', () => resolveClose()));
+  } finally {
+    await server.shutdown();
+  }
+});
+
+test('a visitor is not cut off once their shell has started', { timeout: 5000 }, async () => {
+  const { server, port } = await start({ handshakeTimeoutMs: 300 });
+  try {
+    const session = await visit(port);
+    await session.waitFor('Hello from the test.');
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 600));
+    session.channel.write('q');
+    assert.equal(await session.exitCode, 0);
+  } finally {
+    await server.shutdown();
+  }
+});
+
+test('when the CV cannot be loaded, visitors are told and no session slot is lost', { timeout: 5000 }, async () => {
+  const { server, port } = await start({ contentDir: join(tempDir(), 'missing'), maxSessions: 1 });
+  try {
+    for (const attempt of [1, 2]) {
+      const session = await visit(port);
+      assert.equal(await session.exitCode, 1, `attempt ${attempt}`);
+      assert.match(session.output(), /Something went wrong on our side/);
+    }
+  } finally {
+    await server.shutdown();
+  }
+});
+
 test('commands are refused', async () => {
   const { server, port } = await start();
   try {
@@ -281,6 +338,23 @@ test('behind a relay, a connection reset mid-header does not take the server dow
     await session.waitFor('Hello from the test.');
     session.channel.write('q');
     assert.equal(await session.exitCode, 0);
+  } finally {
+    await server.shutdown();
+  }
+});
+
+test('behind a relay, a second connection claiming a live visitor address is dropped', { timeout: 5000 }, async () => {
+  const { server, port } = await start({ proxyProtocol: true });
+  try {
+    const original = relayed(port, fromRelay('203.0.113.7'));
+    let isOriginalClosed = false;
+    original.on('error', () => {});
+    original.once('close', () => (isOriginalClosed = true));
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 100));
+
+    await closed(relayed(port, fromRelay('203.0.113.7')));
+    assert.equal(isOriginalClosed, false);
+    original.destroy();
   } finally {
     await server.shutdown();
   }

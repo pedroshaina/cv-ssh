@@ -16,6 +16,8 @@ export interface SessionChannelContext {
   /** Every CV session currently open, so shutdown can say goodbye to each. */
   activeSessions: Set<CvSession>;
   isShuttingDown: () => boolean;
+  /** Called each time a shell starts, so the connection is no longer on a deadline. */
+  onSessionStarted: () => void;
 }
 
 /** Offers the CV on a shell with a PTY, and refuses everything else a session can ask for. */
@@ -56,16 +58,27 @@ export function handleSessionChannel(session: Session, context: SessionChannelCo
       refuseChannel(channel, REJECTION_MESSAGES[admission.reason]);
       return;
     }
+    let startedSession: CvSession;
+    try {
+      startedSession = startCvSession(channel, windowSize, {
+        contentDir: config.contentDir,
+        idleTimeoutMs: config.idleTimeoutMs,
+        logger: connectionLogger,
+        onEnd: admission.release,
+      });
+    } catch (error) {
+      // ssh2 would swallow this as a client error, and the slot would never
+      // be released.
+      admission.release();
+      connectionLogger.error({ err: error }, 'session failed to start');
+      refuseChannel(channel, REJECTION_MESSAGES['unavailable']);
+      return;
+    }
     connectionLogger.info(
       { term: terminalType, ...windowSize, active: sessionLimiter.activeSessionCount },
       'session started',
     );
-    const startedSession = startCvSession(channel, windowSize, {
-      contentDir: config.contentDir,
-      idleTimeoutMs: config.idleTimeoutMs,
-      logger: connectionLogger,
-      onEnd: admission.release,
-    });
+    context.onSessionStarted();
     activeSessions.add(startedSession);
     void startedSession.done.finally(() => activeSessions.delete(startedSession));
     cvSession = startedSession;

@@ -67,7 +67,7 @@ server with a message naming the variable, and an empty value counts as unset (t
 | `IDLE_TIMEOUT_SECONDS` | `180` | Disconnect after this long without a keypress |
 | `MAX_SESSIONS` | `20` | Concurrent sessions in total |
 | `MAX_SESSIONS_PER_IP` | `2` | Concurrent sessions per client IP; `0` disables |
-| `HANDSHAKE_TIMEOUT_SECONDS` | `30` | Time to connect and authenticate |
+| `HANDSHAKE_TIMEOUT_SECONDS` | `30` | Time from connecting to the CV showing (handshake, login and opening a shell) |
 | `PROXY_PROTOCOL` | `false` | Require a PROXY protocol header (v1 or v2) on every connection; see below |
 | `LOG_LEVEL` | `info` | pino level; logs are JSON lines on stdout |
 

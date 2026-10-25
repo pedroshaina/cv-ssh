@@ -75,7 +75,7 @@ export const configSchema = z
     maxSessions: env.MAX_SESSIONS,
     /** Concurrent CV sessions per client IP; 0 disables the check. */
     maxSessionsPerIp: env.MAX_SESSIONS_PER_IP,
-    /** Time a client has to finish the SSH handshake and authenticate. */
+    /** Time a client has, from connecting, to authenticate and open its shell. */
     handshakeTimeoutMs: env.HANDSHAKE_TIMEOUT_SECONDS * 1000,
     /**
      * Every connection must start with a PROXY protocol header from the relay in

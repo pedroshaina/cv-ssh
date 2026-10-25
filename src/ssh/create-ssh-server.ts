@@ -4,6 +4,7 @@ import type { Config } from '../config/config.schema.js';
 import type { Logger } from '../logging/create-logger.js';
 import type { CvSession } from '../cv-session/cv-session.types.js';
 import { handleClient } from './client-handlers.js';
+import { ConnectionDeadlines } from './connection-deadlines.js';
 import { loadOrCreateHostKey } from './host-key.js';
 import { SessionLimiter } from './session-limits/session-limiter.js';
 import type { SshServer } from './ssh-server.types.js';
@@ -16,6 +17,7 @@ export function createSshServer(config: Config, logger: Logger): SshServer {
   const hostKey = loadOrCreateHostKey(config.hostKeyPath, logger);
   const sessionLimiter = new SessionLimiter(config.maxSessions, config.maxSessionsPerIp);
   const activeSessions = new Set<CvSession>();
+  const connectionDeadlines = new ConnectionDeadlines();
   let isListening = false;
   let isShuttingDown = false;
 
@@ -23,6 +25,7 @@ export function createSshServer(config: Config, logger: Logger): SshServer {
     handleClient(client, clientInfo, {
       config,
       logger,
+      connectionDeadlines,
       sessionLimiter,
       activeSessions,
       isShuttingDown: () => isShuttingDown,
@@ -36,6 +39,7 @@ export function createSshServer(config: Config, logger: Logger): SshServer {
   const tcpServer = createTcpListener(sshServer, {
     handshakeTimeoutMs: config.handshakeTimeoutMs,
     proxyProtocol: config.proxyProtocol,
+    connectionDeadlines,
     logger,
   });
 
