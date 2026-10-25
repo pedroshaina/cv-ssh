@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { parseProxyHeader } from './proxy.js';
+import { parseProxyHeader } from './parse-proxy-header.js';
 
 const SSH = Buffer.from('SSH-2.0-OpenSSH_9.9\r\n');
 

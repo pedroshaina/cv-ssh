@@ -1,12 +1,13 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { createServer, isIP, type AddressInfo, type Socket } from 'node:net';
+import { createServer, type AddressInfo } from 'node:net';
 import { dirname } from 'node:path';
 import ssh2, { type ServerChannel } from 'ssh2';
 import type { Config } from './config/config.schema.js';
 import { SessionLimiter } from './limits.js';
 import type { Logger } from './logging/create-logger.js';
-import { parseProxyHeader, type ProxySource } from './proxy.js';
+import { applyProxiedAddress } from './ssh/proxy-protocol/apply-proxied-address.js';
+import { readProxyHeader } from './ssh/proxy-protocol/read-proxy-header.js';
 import { startCvSession, type CvSession } from './session.js';
 import type { WindowSize } from './terminal.js';
 
@@ -36,18 +37,6 @@ function refuse(channel: ServerChannel, message: string): void {
   channel.write(`${message}\r\n`);
   channel.exit(1);
   channel.end();
-}
-
-/**
- * ssh2 reads the client's address from the socket. Behind a relay that is the
- * relay's address, so overlay the visitor's, from the PROXY header.
- */
-function useProxiedAddress(socket: Socket, source: ProxySource): void {
-  Object.defineProperties(socket, {
-    remoteAddress: { value: source.address },
-    remotePort: { value: source.port },
-    remoteFamily: { value: isIP(source.address) === 6 ? 'IPv6' : 'IPv4' },
-  });
 }
 
 /** How long open sessions get to receive their goodbye before the process exits. */
@@ -208,22 +197,15 @@ export function startServer(config: Config, logger: Logger): CvServer {
     if (!config.proxyProtocol) return handOver();
 
     // The silence timer also bounds how long the header may take to arrive.
-    let received = Buffer.alloc(0);
-    const onData = (chunk: Buffer) => {
-      received = Buffer.concat([received, chunk]);
-      const header = parseProxyHeader(received);
-      if (header.kind === 'incomplete') return;
-      socket.off('data', onData);
-      socket.pause();
+    void readProxyHeader(socket).then((header) => {
       if (header.kind === 'invalid') {
         logger.warn({ peer: socket.remoteAddress, reason: header.reason }, 'connection dropped');
         socket.destroy();
         return;
       }
-      if (header.source) useProxiedAddress(socket, header.source);
-      handOver(received.subarray(header.length));
-    };
-    socket.on('data', onData);
+      if (header.source) applyProxiedAddress(socket, header.source);
+      handOver(header.remainingBytes);
+    });
   });
 
   const listening = new Promise<AddressInfo>((resolve, reject) => {
