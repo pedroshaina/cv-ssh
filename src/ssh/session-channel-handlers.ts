@@ -2,7 +2,7 @@ import type { Session } from 'ssh2';
 import type { Config } from '../config/config.schema.js';
 import type { Logger } from '../logging/create-logger.js';
 import { startCvSession, type CvSession } from '../session.js';
-import type { WindowSize } from '../terminal.js';
+import type { WindowSize } from '../terminal/window-size.types.js';
 import { refuseChannel } from './refuse-channel.js';
 import { REJECTION_MESSAGES } from './rejection-messages.js';
 import type { SessionLimiter } from './session-limits/session-limiter.js';

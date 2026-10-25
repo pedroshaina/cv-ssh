@@ -2,7 +2,8 @@ import { render } from 'ink';
 import type { ServerChannel } from 'ssh2';
 import { loadContent } from './content.js';
 import type { Logger } from './logging/create-logger.js';
-import { createTerminal, type WindowSize } from './terminal.js';
+import { createTerminal } from './terminal/create-terminal.js';
+import type { WindowSize } from './terminal/window-size.types.js';
 import { App } from './ui/App.js';
 
 export interface CvSessionOptions {
