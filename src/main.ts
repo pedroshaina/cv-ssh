@@ -3,7 +3,7 @@ import './terminal/force-color-env.js';
 import { ConfigError, loadConfig } from './config/load-config.js';
 import { createHttpServer } from './http/create-http-server.js';
 import { createLogger } from './logging/create-logger.js';
-import { startServer } from './server.js';
+import { createSshServer } from './ssh/create-ssh-server.js';
 
 function loadConfigOrExit() {
   try {
@@ -20,7 +20,7 @@ function loadConfigOrExit() {
 
 const config = loadConfigOrExit();
 const logger = createLogger(config.logLevel);
-const sshServer = startServer(config, logger);
+const sshServer = createSshServer(config, logger);
 
 const httpServer = createHttpServer(sshServer.isReady);
 httpServer.listen(config.httpPort, config.listenHost, () => {
