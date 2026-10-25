@@ -22,6 +22,15 @@ export function createTcpListener(sshServer: Ssh2Server, options: TcpListenerOpt
     const silenceTimer = setTimeout(() => socket.destroy(), handshakeTimeoutMs);
     socket.once('close', () => clearTimeout(silenceTimer));
 
+    // Until ssh2 takes the socket and attaches its own handler, an error (a
+    // client resetting mid PROXY header) would otherwise be uncaught and
+    // crash the process.
+    const onEarlyError = (error: Error) => {
+      logger.debug({ peer: socket.remoteAddress, err: error.message }, 'connection error before handover');
+      socket.destroy();
+    };
+    socket.on('error', onEarlyError);
+
     // Hands the socket to ssh2, `earlySshBytes` being SSH bytes already read.
     // ssh2 resumes the socket itself once its data listener is attached.
     const handOver = (earlySshBytes?: Buffer) => {
@@ -31,6 +40,7 @@ export function createTcpListener(sshServer: Ssh2Server, options: TcpListenerOpt
       } else {
         socket.once('data', () => clearTimeout(silenceTimer));
       }
+      socket.off('error', onEarlyError);
       sshServer.injectSocket(socket);
     };
 

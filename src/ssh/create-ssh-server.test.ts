@@ -269,6 +269,23 @@ test('behind a relay, the per-IP limit applies to the visitor address in the PRO
   }
 });
 
+test('behind a relay, a connection reset mid-header does not take the server down', { timeout: 5000 }, async () => {
+  const { server, port } = await start({ proxyProtocol: true });
+  try {
+    const abandoned = relayed(port, 'PROXY TCP4 203.0');
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 100));
+    abandoned.resetAndDestroy();
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 100));
+
+    const session = await visit(port, { proxyHeader: fromRelay('203.0.113.7') });
+    await session.waitFor('Hello from the test.');
+    session.channel.write('q');
+    assert.equal(await session.exitCode, 0);
+  } finally {
+    await server.shutdown();
+  }
+});
+
 test('behind a relay, connections without a PROXY header are dropped', async () => {
   const { server, port } = await start({ proxyProtocol: true });
   try {
