@@ -11,8 +11,7 @@ import ssh2, { type Client, type ClientChannel } from 'ssh2';
 import type { Config } from '../config/config.schema.js';
 import { loadConfig } from '../config/load-config.js';
 import { createLogger } from '../logging/create-logger.js';
-import { createSshServer } from './create-ssh-server.js';
-import type { SshServer } from './ssh-server.types.js';
+import { createSshServer, type SshServer } from './create-ssh-server.js';
 
 function tempDir(): string {
   return mkdtempSync(join(tmpdir(), 'cv-ssh-test-'));

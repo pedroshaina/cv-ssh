@@ -1,8 +1,8 @@
-import { createServer, type Server as TcpServer } from 'node:net';
+import { createServer, isIP, type Server as TcpServer, type Socket } from 'node:net';
 import type { Server as Ssh2Server } from 'ssh2';
 import type { Logger } from '../logging/create-logger.js';
 import type { ConnectionDeadlines } from './connection-deadlines.js';
-import { applyProxiedAddress } from './proxy-protocol/apply-proxied-address.js';
+import type { ProxySource } from './proxy-protocol/parse-proxy-header.js';
 import { readProxyHeader } from './proxy-protocol/read-proxy-header.js';
 
 export interface TcpListenerOptions {
@@ -33,7 +33,7 @@ export function createTcpListener(sshServer: Ssh2Server, options: TcpListenerOpt
     // client resetting mid PROXY header) would otherwise be uncaught and
     // crash the process.
     const onEarlyError = (error: Error) => {
-      logger.debug({ peer: socket.remoteAddress, err: error.message }, 'connection error before handover');
+      logger.debug({ peer: socket.remoteAddress, err: error }, 'connection error before handover');
       socket.destroy();
     };
     socket.on('error', onEarlyError);
@@ -63,5 +63,17 @@ export function createTcpListener(sshServer: Ssh2Server, options: TcpListenerOpt
       if (header.source) applyProxiedAddress(socket, header.source);
       handOver(header.remainingBytes);
     });
+  });
+}
+
+/**
+ * ssh2 reads the client's address from the socket. Behind a relay that is the
+ * relay's address, so overlay the visitor's, from the PROXY header.
+ */
+function applyProxiedAddress(socket: Socket, source: ProxySource): void {
+  Object.defineProperties(socket, {
+    remoteAddress: { value: source.address },
+    remotePort: { value: source.port },
+    remoteFamily: { value: isIP(source.address) === 6 ? 'IPv6' : 'IPv4' },
   });
 }

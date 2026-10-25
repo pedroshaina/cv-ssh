@@ -3,8 +3,7 @@ import type { CvSession } from '../cv-session/cv-session.types.js';
 import { startCvSession } from '../cv-session/start-cv-session.js';
 import type { Logger } from '../logging/create-logger.js';
 import type { WindowSize } from '../terminal/window-size.types.js';
-import { refuseChannel } from './refuse-channel.js';
-import { REJECTION_MESSAGES } from './rejection-messages.js';
+import { REFUSAL_MESSAGES, refuseChannel } from './refusals.js';
 import type { SessionRegistry } from './session-registry.js';
 
 export interface SessionChannelContext {
@@ -39,7 +38,7 @@ export function handleSessionChannel(session: Session, context: SessionChannelCo
   session.on('shell', (accept) => {
     const channel = accept();
     if (!windowSize) {
-      refuseChannel(channel, REJECTION_MESSAGES['no-terminal']);
+      refuseChannel(channel, REFUSAL_MESSAGES['no-terminal']);
       return;
     }
     const admission = sessionRegistry.tryAdmit(clientIp);
@@ -48,7 +47,7 @@ export function handleSessionChannel(session: Session, context: SessionChannelCo
         { reason: admission.reason, active: sessionRegistry.activeSessionCount },
         'session refused',
       );
-      refuseChannel(channel, REJECTION_MESSAGES[admission.reason]);
+      refuseChannel(channel, REFUSAL_MESSAGES[admission.reason]);
       return;
     }
     let startedSession: CvSession;
@@ -64,7 +63,7 @@ export function handleSessionChannel(session: Session, context: SessionChannelCo
       // be released.
       admission.slot.release();
       connectionLogger.error({ err: error }, 'session failed to start');
-      refuseChannel(channel, REJECTION_MESSAGES['unavailable']);
+      refuseChannel(channel, REFUSAL_MESSAGES['unavailable']);
       return;
     }
     admission.slot.hold(startedSession);
@@ -78,7 +77,7 @@ export function handleSessionChannel(session: Session, context: SessionChannelCo
 
   session.on('exec', (accept, _reject, execInfo) => {
     connectionLogger.info({ command: execInfo.command }, 'exec refused');
-    refuseChannel(accept(), REJECTION_MESSAGES['commands-unsupported']);
+    refuseChannel(accept(), REFUSAL_MESSAGES['commands-unsupported']);
   });
 
   // Nothing but the shell is offered. sftp and other subsystems are worth

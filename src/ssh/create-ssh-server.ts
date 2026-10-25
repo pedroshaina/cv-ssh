@@ -1,3 +1,4 @@
+import type { AddressInfo } from 'node:net';
 import ssh2 from 'ssh2';
 import type { Config } from '../config/config.schema.js';
 import type { Logger } from '../logging/create-logger.js';
@@ -6,8 +7,19 @@ import { handleClient } from './client-handlers.js';
 import { ConnectionDeadlines } from './connection-deadlines.js';
 import { loadOrCreateHostKey } from './host-key.js';
 import { SessionRegistry } from './session-registry.js';
-import type { SshServer } from './ssh-server.types.js';
 import { createTcpListener } from './tcp-listener.js';
+
+export interface SshServer {
+  /** Resolves with the bound address once the SSH port is listening. */
+  listen(port: number, host: string): Promise<AddressInfo>;
+  /** True while listening and not shutting down. */
+  isReady(): boolean;
+  /**
+   * Stops accepting connections and ends every open session. Calling it again
+   * returns the same promise.
+   */
+  shutdown(): Promise<void>;
+}
 
 /** How long open sessions get to receive their goodbye before the process exits. */
 const SHUTDOWN_GRACE_MS = 5000;

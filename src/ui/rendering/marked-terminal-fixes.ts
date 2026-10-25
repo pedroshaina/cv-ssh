@@ -1,5 +1,6 @@
 import type { MarkedExtension } from 'marked';
 import wrapAnsi from 'wrap-ansi';
+import { MIN_TEXT_WIDTH } from '../layout.constants.js';
 
 /** Columns a top-level list item's text starts at: the list's tab (2) plus "* ". */
 const LIST_TEXT_INDENT = 4;
@@ -17,7 +18,7 @@ export function markedTerminalFixes(width: number): MarkedExtension {
       text(token) {
         if (!('tokens' in token && token.tokens)) return false;
         const inlineText = this.parser.parseInline(token.tokens).replace(/\s*\n\s*/g, ' ');
-        return wrapAnsi(inlineText, Math.max(20, width - LIST_TEXT_INDENT));
+        return wrapAnsi(inlineText, Math.max(MIN_TEXT_WIDTH, width - LIST_TEXT_INDENT));
       },
       // A bare email address renders as "you@x.com (mailto:you@x.com)". Making
       // href match the text lets marked-terminal print it once.

@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { Box, Text } from 'ink';
 import type { Header } from '../../content/content.types.js';
-import { renderBanner } from '../../rendering/render-banner.js';
-import { renderMarkdown } from '../../rendering/render-markdown.js';
-import { CHROME_ROWS, MIN_CONTENT_ROWS } from '../layout.constants.js';
+import { renderBanner } from '../rendering/render-banner.js';
+import { renderMarkdown } from '../rendering/render-markdown.js';
+import { CHROME_ROWS, MIN_CONTENT_ROWS, PADDING_X } from '../layout.constants.js';
 
 interface BannerProps {
   header: Header;
@@ -18,14 +18,14 @@ export function Banner({ header, columns, rows, textWidth }: BannerProps) {
   const taglineRows = tagline ? tagline.split('\n').length : 0;
 
   const bannerArt = useMemo(() => {
-    const candidateArt = renderBanner(header.name, columns - 4);
+    const candidateArt = renderBanner(header.name, columns - 2 * PADDING_X);
     if (!candidateArt) return undefined;
     const bannerRows = candidateArt.split('\n').length + taglineRows + 1;
     return rows - bannerRows - CHROME_ROWS >= MIN_CONTENT_ROWS ? candidateArt : undefined;
   }, [header.name, columns, rows, taglineRows]);
 
   return (
-    <Box flexDirection="column" paddingX={2} paddingTop={1} flexShrink={0}>
+    <Box flexDirection="column" paddingX={PADDING_X} paddingTop={1} flexShrink={0}>
       {bannerArt ? (
         <Text color="cyan">{bannerArt}</Text>
       ) : (

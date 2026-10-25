@@ -7,7 +7,7 @@ export interface SessionLimits {
   maxSessionsPerIp: number;
 }
 
-export type RefusalReason = 'shutting-down' | 'server-full' | 'ip-limit';
+export type RefusalReason = 'shutdown' | 'server-full' | 'ip-limit';
 
 /** One CV session's place, held from admission until the session ends. */
 export interface SessionSlot {
@@ -32,7 +32,7 @@ export class SessionRegistry {
   constructor(private readonly limits: SessionLimits) {}
 
   tryAdmit(clientIp: string): Admission {
-    if (this.shuttingDown) return { ok: false, reason: 'shutting-down' };
+    if (this.shuttingDown) return { ok: false, reason: 'shutdown' };
     if (this.heldSlots.size >= this.limits.maxSessions) return { ok: false, reason: 'server-full' };
     const { maxSessionsPerIp } = this.limits;
     if (maxSessionsPerIp > 0 && this.sessionCountFrom(clientIp) >= maxSessionsPerIp) {

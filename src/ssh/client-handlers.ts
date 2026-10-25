@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type { ClientInfo, Connection } from 'ssh2';
 import type { Logger } from '../logging/create-logger.js';
 import type { ConnectionDeadlines } from './connection-deadlines.js';
-import { refuseForwarding } from './forwarding-refusal.js';
+import { refuseForwarding } from './refusals.js';
 import { handleSessionChannel } from './session-channel-handlers.js';
 import type { SessionRegistry } from './session-registry.js';
 
@@ -42,6 +42,6 @@ export function handleClient(client: Connection, clientInfo: ClientInfo, context
     });
   });
 
-  client.on('error', (error) => connectionLogger.debug({ err: error.message }, 'client error'));
+  client.on('error', (error) => connectionLogger.debug({ err: error }, 'client error'));
   client.on('close', () => connectionLogger.debug('connection closed'));
 }

@@ -4,7 +4,7 @@ import { createTerminal } from '../terminal/create-terminal.js';
 import type { WindowSize } from '../terminal/window-size.types.js';
 import { mountApp } from '../ui/mount-app.js';
 import type { CvSession, CvSessionOptions, EndReason } from './cv-session.types.js';
-import { GOODBYE_MESSAGES } from './goodbye-messages.js';
+import { GOODBYE_MESSAGES } from './goodbye-messages.constants.js';
 
 /** Mounts the CV app on one SSH shell channel; closes the channel when the app exits. */
 export function startCvSession(channel: ServerChannel, windowSize: WindowSize, options: CvSessionOptions): CvSession {

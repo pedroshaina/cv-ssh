@@ -1,10 +1,29 @@
 // PROXY protocol (https://www.haproxy.org/download/2.9/doc/proxy-protocol.txt):
 // a relay in front of the server sends one header with the visitor's address
 // before the SSH bytes, so the server sees the visitor rather than the relay.
-import { parseV1 } from './parse-v1.js';
-import { parseV2 } from './parse-v2.js';
-import { V1_PREFIX, V2_SIGNATURE } from './proxy-header.constants.js';
-import type { ProxyHeader } from './proxy-header.types.js';
+import { isIP } from 'node:net';
+
+export interface ProxySource {
+  address: string;
+  port: number;
+}
+
+export type ProxyHeader =
+  /** More bytes needed. */
+  | { kind: 'incomplete' }
+  | { kind: 'invalid'; reason: string }
+  /**
+   * `length` bytes of header, followed by the SSH stream. No `source` means
+   * the relay connected on its own behalf (a health check, v2 LOCAL or v1
+   * UNKNOWN): keep the socket's own address.
+   */
+  | { kind: 'header'; length: number; source?: ProxySource };
+
+const V2_SIGNATURE = Buffer.from('\r\n\r\n\0\r\nQUIT\n', 'latin1');
+const V2_FIXED_LENGTH = 16;
+const V1_PREFIX = Buffer.from('PROXY ', 'latin1');
+/** Longest v1 line allowed by the spec, CRLF included. */
+const V1_MAX_LENGTH = 107;
 
 export function parseProxyHeader(data: Buffer): ProxyHeader {
   if (startsWith(data, V2_SIGNATURE)) return parseV2(data);
@@ -19,4 +38,64 @@ export function parseProxyHeader(data: Buffer): ProxyHeader {
 
 function startsWith(data: Buffer, prefix: Buffer): boolean {
   return data.length >= prefix.length && data.subarray(0, prefix.length).equals(prefix);
+}
+
+// "PROXY TCP4 203.0.113.7 10.0.0.5 51234 22\r\n" or "PROXY UNKNOWN ...\r\n"
+function parseV1(data: Buffer): ProxyHeader {
+  const lineEnd = data.subarray(0, V1_MAX_LENGTH).indexOf('\r\n');
+  if (lineEnd === -1) {
+    return data.length < V1_MAX_LENGTH ? { kind: 'incomplete' } : { kind: 'invalid', reason: 'PROXY line too long' };
+  }
+  const length = lineEnd + 2;
+  const [, protocol, sourceAddress, , sourcePort] = data.subarray(0, lineEnd).toString('latin1').split(' ');
+  if (protocol === 'UNKNOWN') return { kind: 'header', length };
+
+  const port = Number(sourcePort);
+  const family = protocol === 'TCP4' ? 4 : protocol === 'TCP6' ? 6 : undefined;
+  if (!family || !sourceAddress || isIP(sourceAddress) !== family || !Number.isInteger(port) || port < 0 || port > 65535) {
+    return { kind: 'invalid', reason: 'malformed PROXY line' };
+  }
+  return { kind: 'header', length, source: { address: sourceAddress, port } };
+}
+
+/** Binary v2 header: 16 fixed bytes (signature, version/command, family, length), then addresses. */
+function parseV2(data: Buffer): ProxyHeader {
+  if (data.length < V2_FIXED_LENGTH) return { kind: 'incomplete' };
+  const versionCommand = data.readUInt8(12);
+  const familyProtocol = data.readUInt8(13);
+  const length = V2_FIXED_LENGTH + data.readUInt16BE(14);
+  if (versionCommand >> 4 !== 2) return { kind: 'invalid', reason: 'unsupported PROXY version' };
+  if (data.length < length) return { kind: 'incomplete' };
+
+  const command = versionCommand & 0x0f;
+  if (command === 0x0) return { kind: 'header', length };
+  if (command !== 0x1) return { kind: 'invalid', reason: 'unknown PROXY command' };
+
+  // Source address and port; what follows (destination, TLVs) isn't needed.
+  const addressBlock = data.subarray(V2_FIXED_LENGTH, length);
+  switch (familyProtocol) {
+    case 0x11: // TCP over IPv4
+      if (addressBlock.length < 12) return { kind: 'invalid', reason: 'short IPv4 address block' };
+      return {
+        kind: 'header',
+        length,
+        source: { address: [...addressBlock.subarray(0, 4)].join('.'), port: addressBlock.readUInt16BE(8) },
+      };
+    case 0x21: // TCP over IPv6
+      if (addressBlock.length < 36) return { kind: 'invalid', reason: 'short IPv6 address block' };
+      return {
+        kind: 'header',
+        length,
+        source: { address: formatIpv6Address(addressBlock.subarray(0, 16)), port: addressBlock.readUInt16BE(32) },
+      };
+    default: // UNSPEC, UDP or Unix sockets: nothing usable
+      return { kind: 'header', length };
+  }
+}
+
+/** Compressed form ("2001:db8::1"), as Node reports socket addresses. */
+function formatIpv6Address(bytes: Buffer): string {
+  const groups: string[] = [];
+  for (let byteOffset = 0; byteOffset < 16; byteOffset += 2) groups.push(bytes.readUInt16BE(byteOffset).toString(16));
+  return new URL(`http://[${groups.join(':')}]`).hostname.slice(1, -1);
 }

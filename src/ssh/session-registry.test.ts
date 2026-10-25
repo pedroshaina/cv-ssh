@@ -58,7 +58,7 @@ test('endAll ends every held session and refuses new ones', () => {
   sessionRegistry.endAll();
   assert.equal(session.endedWith, 'shutdown');
   assert.equal(sessionRegistry.isShuttingDown, true);
-  assert.deepEqual(sessionRegistry.tryAdmit('2.2.2.2'), { ok: false, reason: 'shutting-down' });
+  assert.deepEqual(sessionRegistry.tryAdmit('2.2.2.2'), { ok: false, reason: 'shutdown' });
 });
 
 test('endAll leaves sessions that have already ended alone', () => {
