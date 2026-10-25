@@ -4,7 +4,7 @@ import { createServer, type AddressInfo } from 'node:net';
 import { dirname } from 'node:path';
 import ssh2, { type ServerChannel } from 'ssh2';
 import type { Config } from './config/config.schema.js';
-import { SessionLimiter } from './limits.js';
+import { SessionLimiter } from './ssh/session-limits/session-limiter.js';
 import type { Logger } from './logging/create-logger.js';
 import { applyProxiedAddress } from './ssh/proxy-protocol/apply-proxied-address.js';
 import { readProxyHeader } from './ssh/proxy-protocol/read-proxy-header.js';
@@ -53,7 +53,7 @@ export interface CvServer {
 
 export function startServer(config: Config, logger: Logger): CvServer {
   const hostKey = loadOrCreateHostKey(config.hostKeyPath, logger);
-  const limiter = new SessionLimiter(config.maxSessions, config.maxSessionsPerIp);
+  const sessionLimiter = new SessionLimiter(config.maxSessions, config.maxSessionsPerIp);
   const sessions = new Set<CvSession>();
   let isListening = false;
   let shuttingDown = false;
@@ -123,13 +123,13 @@ export function startServer(config: Config, logger: Logger): CvServer {
             refuse(channel, REJECTION_MESSAGES['shutting-down']);
             return;
           }
-          const admission = limiter.tryAcquire(info.ip);
+          const admission = sessionLimiter.tryAcquire(info.ip);
           if (!admission.ok) {
-            connLog.warn({ reason: admission.reason, active: limiter.active }, 'session refused');
+            connLog.warn({ reason: admission.reason, active: sessionLimiter.activeSessionCount }, 'session refused');
             refuse(channel, REJECTION_MESSAGES[admission.reason]);
             return;
           }
-          connLog.info({ term, ...size, active: limiter.active }, 'session started');
+          connLog.info({ term, ...size, active: sessionLimiter.activeSessionCount }, 'session started');
           const started = startCvSession(channel, size, {
             contentDir: config.contentDir,
             idleTimeoutMs: config.idleTimeoutMs,
