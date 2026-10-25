@@ -152,6 +152,24 @@ test('an idle visitor is disconnected with a goodbye', { timeout: 5000 }, async 
   }
 });
 
+test('typing keeps a visitor from being disconnected as idle', { timeout: 5000 }, async () => {
+  const { server, port } = await start({ idleTimeoutMs: 400 });
+  try {
+    const session = await visit(port);
+    await session.waitFor('Hello from the test.');
+    // Keys every 150 ms for 900 ms: over twice the idle timeout in total.
+    for (let keypress = 0; keypress < 6; keypress++) {
+      await new Promise((resolveDelay) => setTimeout(resolveDelay, 150));
+      session.channel.write('j');
+    }
+    assert.doesNotMatch(session.output(), /Disconnected after a few minutes of inactivity/);
+    session.channel.write('q');
+    assert.equal(await session.exitCode, 0);
+  } finally {
+    await server.shutdown();
+  }
+});
+
 test('commands are refused', async () => {
   const { server, port } = await start();
   try {
