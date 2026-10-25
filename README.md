@@ -14,7 +14,7 @@ There is no shell on the other end. The SSH server *is* the app:
 - [`ssh2`](https://github.com/mscdotnet/ssh2) accepts every connection (any auth method), waits
   for the client's PTY request and opens the shell channel.
 - Each session mounts an [Ink](https://github.com/vadimdemedes/ink) (React for the terminal)
-  app on that channel. `src/terminal.ts` makes the channel look like a TTY to Ink: window size,
+  app on that channel. `src/terminal/` makes the channel look like a TTY to Ink: window size,
   resize events, raw input and `\n` → `\r\n` (there is no kernel PTY to do it).
 - The content is Markdown, rendered to ANSI with
   [`marked-terminal`](https://github.com/mikaelbr/marked-terminal); the name banner is
@@ -55,7 +55,8 @@ q to quit.
 
 ## Configuration
 
-Environment variables, all optional:
+Environment variables, all optional. They are validated at startup: an invalid value stops the
+server with a message naming the variable, and an empty value counts as unset (the default applies).
 
 | Variable | Default | |
 |---|---|---|

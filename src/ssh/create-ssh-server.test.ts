@@ -22,7 +22,7 @@ async function start(overrides: Partial<Config> = {}): Promise<{ server: SshServ
   const contentDir = tempDir();
   writeFileSync(join(contentDir, '_header.md'), '# Ada Lovelace\n\nAnalyst\n');
   writeFileSync(join(contentDir, '01-about.md'), '# About\n\nHello from the test.\n');
-  writeFileSync(join(contentDir, '02-contact.md'), '# Contact\n');
+  writeFileSync(join(contentDir, '02-contact.md'), '# Contact\n\nReach me by pigeon.\n');
   const server = createSshServer({
     ...loadConfig({}),
     listenHost: '127.0.0.1',
@@ -107,6 +107,21 @@ test('a visitor browses the CV and quits', async () => {
     session.channel.write('q');
     assert.equal(await session.exitCode, 0);
     assert.match(session.output(), /Thanks for stopping by!/);
+  } finally {
+    await server.shutdown();
+  }
+});
+
+test('the keyboard switches between sections', { timeout: 5000 }, async () => {
+  const { server, port } = await start();
+  try {
+    const session = await visit(port);
+    await session.waitFor('Hello from the test.');
+    assert.doesNotMatch(session.output(), /Reach me by pigeon/);
+    session.channel.write('\x1b[C'); // right arrow
+    await session.waitFor('Reach me by pigeon.');
+    session.channel.write('q');
+    assert.equal(await session.exitCode, 0);
   } finally {
     await server.shutdown();
   }
