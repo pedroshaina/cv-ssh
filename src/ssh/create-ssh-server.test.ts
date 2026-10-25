@@ -125,6 +125,18 @@ test('visitors get colour, even though the server has no TTY', async () => {
   }
 });
 
+test('an idle visitor is disconnected with a goodbye', { timeout: 5000 }, async () => {
+  const { server, port } = await start({ idleTimeoutMs: 300 });
+  try {
+    const session = await visit(port);
+    await session.waitFor('Hello from the test.');
+    assert.equal(await session.exitCode, 0);
+    assert.match(session.output(), /Disconnected after a few minutes of inactivity/);
+  } finally {
+    await server.shutdown();
+  }
+});
+
 test('commands are refused', async () => {
   const { server, port } = await start();
   try {

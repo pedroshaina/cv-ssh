@@ -2,7 +2,7 @@ import type { AddressInfo } from 'node:net';
 import ssh2 from 'ssh2';
 import type { Config } from '../config/config.schema.js';
 import type { Logger } from '../logging/create-logger.js';
-import type { CvSession } from '../session.js';
+import type { CvSession } from '../cv-session/cv-session.types.js';
 import { handleClient } from './client-handlers.js';
 import { loadOrCreateHostKey } from './host-key.js';
 import { SessionLimiter } from './session-limits/session-limiter.js';

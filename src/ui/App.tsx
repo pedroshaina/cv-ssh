@@ -13,7 +13,7 @@ const MIN_CONTENT_ROWS = 12;
 /** Rows taken by the tab bar (with its border) and the footer. */
 const CHROME_ROWS = 4;
 
-interface AppProps {
+export interface AppProps {
   content: CvContent;
   onSectionView?: (title: string) => void;
 }

@@ -1,7 +1,8 @@
 import type { Session } from 'ssh2';
 import type { Config } from '../config/config.schema.js';
+import type { CvSession } from '../cv-session/cv-session.types.js';
+import { startCvSession } from '../cv-session/start-cv-session.js';
 import type { Logger } from '../logging/create-logger.js';
-import { startCvSession, type CvSession } from '../session.js';
 import type { WindowSize } from '../terminal/window-size.types.js';
 import { refuseChannel } from './refuse-channel.js';
 import { REJECTION_MESSAGES } from './rejection-messages.js';
@@ -62,7 +63,7 @@ export function handleSessionChannel(session: Session, context: SessionChannelCo
     const startedSession = startCvSession(channel, windowSize, {
       contentDir: config.contentDir,
       idleTimeoutMs: config.idleTimeoutMs,
-      log: connectionLogger,
+      logger: connectionLogger,
       onEnd: admission.release,
     });
     activeSessions.add(startedSession);
