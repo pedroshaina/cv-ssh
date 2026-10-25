@@ -30,4 +30,4 @@ COPY --from=build /app/dist ./dist
 COPY --from=build --chown=nonroot:nonroot /data /data
 COPY content ./content
 EXPOSE 2222 8080
-CMD ["dist/index.js"]
+CMD ["dist/main.js"]
