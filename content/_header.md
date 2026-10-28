@@ -1,3 +1,3 @@
-# Pedro Shainã Martins
+# Pedro Shaina Martins
 
-**Senior Software Engineer** · Brasília, Brazil (UTC-3) · Remote since 2019
+**Senior Software Engineer** · Brazil · Remote since 2019
