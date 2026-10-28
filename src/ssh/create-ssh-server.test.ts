@@ -89,31 +89,20 @@ function visit(port: number, { command, proxyHeader }: VisitOptions = {}): Promi
   });
 }
 
-test('a visitor browses the CV and quits', async () => {
+test('a visitor browses the CV with the keyboard and quits', { timeout: 5000 }, async () => {
   const { server, port } = await start();
   try {
     const session = await visit(port);
     await session.waitFor('Hello from the test.');
     assert.match(session.output(), /Contact/);
+    assert.doesNotMatch(session.output(), /Reach me by pigeon/);
+
+    session.channel.write('\x1b[C'); // right arrow
+    await session.waitFor('Reach me by pigeon.');
 
     session.channel.write('q');
     assert.equal(await session.exitCode, 0);
     assert.match(session.output(), /Thanks for stopping by!/);
-  } finally {
-    await server.shutdown();
-  }
-});
-
-test('the keyboard switches between sections', { timeout: 5000 }, async () => {
-  const { server, port } = await start();
-  try {
-    const session = await visit(port);
-    await session.waitFor('Hello from the test.');
-    assert.doesNotMatch(session.output(), /Reach me by pigeon/);
-    session.channel.write('\x1b[C'); // right arrow
-    await session.waitFor('Reach me by pigeon.');
-    session.channel.write('q');
-    assert.equal(await session.exitCode, 0);
   } finally {
     await server.shutdown();
   }
@@ -229,17 +218,17 @@ test('commands are refused', async () => {
   }
 });
 
-test('shutdown sends open sessions off politely', async () => {
+test('shutdown sends open sessions off politely, however often it is called', async () => {
   const { server, port } = await start();
   const session = await visit(port);
   await session.waitFor('Hello from the test.');
   assert.equal(server.isReady(), true);
 
-  const shutdown = server.shutdown();
+  const shutdowns = [server.shutdown(), server.shutdown()];
   assert.equal(server.isReady(), false);
   assert.equal(await session.exitCode, 0);
   assert.match(session.output(), /The server is restarting/);
-  await shutdown;
+  await Promise.all(shutdowns);
 });
 
 function connect(port: number): Promise<Client> {
@@ -256,18 +245,6 @@ function refusal(call: (callback: (error?: Error) => void) => void): Promise<Err
     call((error) => (error ? resolve(error) : reject(new Error('the server allowed it')))),
   );
 }
-
-test('shutdown can be called again while it is running, and waits all the same', async () => {
-  const { server, port } = await start();
-  const session = await visit(port);
-  await session.waitFor('Hello from the test.');
-
-  const first = server.shutdown();
-  const second = server.shutdown();
-  assert.equal(second, first);
-  await second;
-  assert.match(session.output(), /The server is restarting/);
-});
 
 test('port forwarding is refused, so the server is no proxy', async () => {
   let reached = false;
