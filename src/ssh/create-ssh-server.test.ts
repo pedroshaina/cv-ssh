@@ -188,11 +188,12 @@ test('a client that authenticates but never opens a shell is dropped', { timeout
 });
 
 test('a visitor is not cut off once their shell has started', { timeout: 5000 }, async () => {
-  const { server, port } = await start({ handshakeTimeoutMs: 300 });
+  // Long enough for a slow CI runner to finish the handshake.
+  const { server, port } = await start({ handshakeTimeoutMs: 1500 });
   try {
     const session = await visit(port);
     await session.waitFor('Hello from the test.');
-    await new Promise((resolveDelay) => setTimeout(resolveDelay, 600));
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 2000));
     session.channel.write('q');
     assert.equal(await session.exitCode, 0);
   } finally {
