@@ -38,11 +38,14 @@ interface Visit {
   rawOutput: () => string;
   waitFor: (text: string) => Promise<void>;
   exitCode: Promise<number | undefined>;
+  disconnect: () => void;
 }
 
 interface VisitOptions {
   command?: string;
   proxyHeader?: string;
+  /** false opens the shell without a PTY. */
+  window?: { cols: number; rows: number } | false;
 }
 
 function relayed(port: number, proxyHeader: string): Socket {
@@ -51,7 +54,7 @@ function relayed(port: number, proxyHeader: string): Socket {
   return socket;
 }
 
-function visit(port: number, { command, proxyHeader }: VisitOptions = {}): Promise<Visit> {
+function visit(port: number, { command, proxyHeader, window }: VisitOptions = {}): Promise<Visit> {
   return new Promise((resolve, reject) => {
     const client = new ssh2.Client();
     client.on('error', reject);
@@ -79,10 +82,11 @@ function visit(port: number, { command, proxyHeader }: VisitOptions = {}): Promi
             waiters.push(check);
             check();
           });
-        resolve({ channel, output, rawOutput: () => receivedText, waitFor, exitCode });
+        resolve({ channel, output, rawOutput: () => receivedText, waitFor, exitCode, disconnect: () => client.end() });
       };
       if (command) client.exec(command, onChannel);
-      else client.shell({ term: 'xterm-256color', cols: 100, rows: 30 }, onChannel);
+      else if (window === false) client.shell(false, onChannel);
+      else client.shell({ term: 'xterm-256color', cols: 100, rows: 30, ...window }, onChannel);
     });
     const relaySocket = proxyHeader === undefined ? undefined : relayed(port, proxyHeader);
     client.connect({ host: '127.0.0.1', port, username: 'visitor', sock: relaySocket });
@@ -204,6 +208,118 @@ test('when the CV cannot be loaded, visitors are told and no session slot is los
     }
   } finally {
     await server.shutdown();
+  }
+});
+
+test('Ctrl-C and Esc quit too', { timeout: 5000 }, async () => {
+  const { server, port } = await start();
+  try {
+    for (const key of ['\x03', '\x1b']) {
+      const session = await visit(port);
+      await session.waitFor('Hello from the test.');
+      session.channel.write(key);
+      assert.equal(await session.exitCode, 0, JSON.stringify(key));
+    }
+  } finally {
+    await server.shutdown();
+  }
+});
+
+test('a terminal too small for the CV says so', { timeout: 5000 }, async () => {
+  const { server, port } = await start();
+  try {
+    const session = await visit(port, { window: { cols: 30, rows: 10 } });
+    await session.waitFor('Too small: 30×10');
+    session.channel.write('q');
+    assert.equal(await session.exitCode, 0);
+  } finally {
+    await server.shutdown();
+  }
+});
+
+test('a shell without a terminal is told it needs one', async () => {
+  const { server, port } = await start();
+  try {
+    const session = await visit(port, { window: false });
+    assert.equal(await session.exitCode, 1);
+    assert.match(session.output(), /needs a terminal/);
+  } finally {
+    await server.shutdown();
+  }
+});
+
+/** Fails rather than hangs when the session is refused instead of showing the CV. */
+async function assertAdmitted(session: Visit): Promise<void> {
+  const outcome = await Promise.race([
+    session.waitFor('Hello from the test.').then(() => 'admitted'),
+    session.exitCode.then(() => 'refused'),
+  ]);
+  assert.equal(outcome, 'admitted', session.output());
+}
+
+test('a visitor who quits or disconnects frees their session slot', { timeout: 5000 }, async () => {
+  const { server, port } = await start({ maxSessions: 1 });
+  try {
+    const quitter = await visit(port);
+    await assertAdmitted(quitter);
+    quitter.channel.write('q');
+    await quitter.exitCode;
+
+    const dropper = await visit(port);
+    await assertAdmitted(dropper);
+    dropper.disconnect();
+
+    const next = await visit(port);
+    await assertAdmitted(next);
+    next.channel.write('q');
+    assert.equal(await next.exitCode, 0);
+  } finally {
+    await server.shutdown();
+  }
+});
+
+test('a full server tells the next visitor to come back later', { timeout: 5000 }, async () => {
+  const { server, port } = await start({ maxSessions: 1 });
+  try {
+    const first = await visit(port);
+    await first.waitFor('Hello from the test.');
+    const second = await visit(port);
+    assert.equal(await second.exitCode, 1);
+    assert.match(second.output(), /Too many visitors/);
+  } finally {
+    await server.shutdown();
+  }
+});
+
+/** Resolves with the public host key the server presents. */
+function hostKeyOf(port: number): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const client = new ssh2.Client();
+    client.on('error', reject);
+    client.on('ready', () => client.end());
+    client.connect({
+      host: '127.0.0.1',
+      port,
+      username: 'visitor',
+      hostVerifier: (key: Buffer) => {
+        resolve(key);
+        return true;
+      },
+    });
+  });
+}
+
+test('the host key survives a restart', async () => {
+  const hostKeyPath = join(tempDir(), 'host_key');
+  const first = await start({ hostKeyPath });
+  const firstKey = await hostKeyOf(first.port);
+  await first.server.shutdown();
+
+  const second = await start({ hostKeyPath });
+  try {
+    assert.deepEqual(await hostKeyOf(second.port), firstKey);
+  } finally {
+    await second.server.shutdown();
   }
 });
 
