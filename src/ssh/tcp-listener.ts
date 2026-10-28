@@ -13,11 +13,8 @@ export interface TcpListenerOptions {
 }
 
 /**
- * ssh2 has no timeouts of its own, so a client that goes quiet at any point
- * before its shell starts (before its version line, mid-handshake, or after
- * authenticating) would hold a connection slot forever. Own the TCP listener
- * and give every socket a deadline, which the SSH layer clears once a shell
- * starts.
+ * ssh2 has no timeouts, so a client that stalls before its shell starts would
+ * hold a slot forever. Every socket gets a deadline the SSH layer clears.
  */
 export function createTcpListener(sshServer: Ssh2Server, options: TcpListenerOptions): TcpServer {
   const { handshakeTimeoutMs, proxyProtocol, connectionDeadlines, logger } = options;
@@ -29,16 +26,13 @@ export function createTcpListener(sshServer: Ssh2Server, options: TcpListenerOpt
     }, handshakeTimeoutMs);
     socket.once('close', () => clearTimeout(connectionDeadline));
 
-    // Until ssh2 takes the socket and attaches its own handler, an error (a
-    // client resetting mid PROXY header) would otherwise be uncaught and
-    // crash the process.
+    // Until ssh2 attaches its own handler, an error here would crash the process.
     const onEarlyError = (error: Error) => {
       logger.debug({ peer: socket.remoteAddress, err: error }, 'connection error before handover');
       socket.destroy();
     };
     socket.on('error', onEarlyError);
 
-    // Hands the socket to ssh2, `earlySshBytes` being SSH bytes already read.
     // ssh2 resumes the socket itself once its data listener is attached.
     const handOver = (earlySshBytes?: Buffer) => {
       if (!connectionDeadlines.register(socket, connectionDeadline)) {
@@ -56,7 +50,6 @@ export function createTcpListener(sshServer: Ssh2Server, options: TcpListenerOpt
 
     if (!proxyProtocol) return handOver();
 
-    // The connection deadline also bounds how long the header may take to arrive.
     void readProxyHeader(socket).then((header) => {
       if (header.kind === 'invalid') {
         logger.warn({ peer: socket.remoteAddress, reason: header.reason }, 'connection dropped');
@@ -69,10 +62,7 @@ export function createTcpListener(sshServer: Ssh2Server, options: TcpListenerOpt
   });
 }
 
-/**
- * ssh2 reads the client's address from the socket. Behind a relay that is the
- * relay's address, so overlay the visitor's, from the PROXY header.
- */
+/** ssh2 reads the client's address from the socket, which would be the relay's. */
 function applyProxiedAddress(socket: Socket, source: ProxySource): void {
   Object.defineProperties(socket, {
     remoteAddress: { value: source.address },

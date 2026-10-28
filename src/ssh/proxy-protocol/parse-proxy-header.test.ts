@@ -4,7 +4,6 @@ import { parseProxyHeader } from './parse-proxy-header.js';
 
 const SSH_VERSION_LINE = Buffer.from('SSH-2.0-OpenSSH_9.9\r\n');
 
-/** A v2 header as HAProxy's send-proxy-v2 writes it; IPv6 written out in full. */
 function proxyV2(source: { address: string; port: number } | 'local'): Buffer {
   const signature = Buffer.from('\r\n\r\n\0\r\nQUIT\n', 'latin1');
   if (source === 'local') return Buffer.concat([signature, Buffer.from([0x20, 0x00, 0, 0])]);
@@ -65,7 +64,7 @@ test('a header split across packets waits for the rest', () => {
 
 test('anything else is invalid, so it cannot pass as a relayed connection', () => {
   const invalidInputs = [
-    SSH_VERSION_LINE, // a client talking to the server directly
+    SSH_VERSION_LINE,
     Buffer.from('PROXY TCP4 not-an-ip 10.0.0.5 1 22\r\n'),
     Buffer.from('PROXY TCP4 203.0.113.7 10.0.0.5 99999 22\r\n'),
     Buffer.from(`PROXY ${'x'.repeat(200)}`),

@@ -5,15 +5,12 @@ export interface CvSessionOptions {
   contentDir: string;
   idleTimeoutMs: number;
   logger: Logger;
-  /** Called once, however the session ends. */
   onEnd: () => void;
 }
 
 export interface CvSession {
   resize(windowSize: WindowSize): void;
-  /** Ends the session from the server side, e.g. on shutdown. */
   end(endReason: EndReason): void;
-  /** Resolves once the visitor has been sent off and the channel is closed. */
   done: Promise<void>;
 }
 

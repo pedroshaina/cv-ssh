@@ -7,7 +7,6 @@ function registry(maxSessions: number, maxSessionsPerIp: number): SessionRegistr
   return new SessionRegistry({ maxSessions, maxSessionsPerIp });
 }
 
-/** A session that records how it was ended. */
 function fakeSession(): CvSession & { endedWith?: EndReason } {
   const session: CvSession & { endedWith?: EndReason } = {
     resize: () => {},

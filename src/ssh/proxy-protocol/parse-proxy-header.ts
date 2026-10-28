@@ -1,6 +1,4 @@
-// PROXY protocol (https://www.haproxy.org/download/2.9/doc/proxy-protocol.txt):
-// a relay in front of the server sends one header with the visitor's address
-// before the SSH bytes, so the server sees the visitor rather than the relay.
+// https://www.haproxy.org/download/2.9/doc/proxy-protocol.txt
 import { isIP } from 'node:net';
 
 export interface ProxySource {
@@ -9,26 +7,19 @@ export interface ProxySource {
 }
 
 export type ProxyHeader =
-  /** More bytes needed. */
   | { kind: 'incomplete' }
   | { kind: 'invalid'; reason: string }
-  /**
-   * `length` bytes of header, followed by the SSH stream. No `source` means
-   * the relay connected on its own behalf (a health check, v2 LOCAL or v1
-   * UNKNOWN): keep the socket's own address.
-   */
+  /** No `source`: the relay connected on its own behalf (e.g. a health check). */
   | { kind: 'header'; length: number; source?: ProxySource };
 
 const V2_SIGNATURE = Buffer.from('\r\n\r\n\0\r\nQUIT\n', 'latin1');
 const V2_FIXED_LENGTH = 16;
 const V1_PREFIX = Buffer.from('PROXY ', 'latin1');
-/** Longest v1 line allowed by the spec, CRLF included. */
 const V1_MAX_LENGTH = 107;
 
 export function parseProxyHeader(data: Buffer): ProxyHeader {
   if (startsWith(data, V2_SIGNATURE)) return parseV2(data);
   if (startsWith(data, V1_PREFIX)) return parseV1(data);
-  // Not a header yet, unless the bytes so far could still become one.
   const prefix = data.subarray(0, V2_SIGNATURE.length);
   if (V2_SIGNATURE.subarray(0, prefix.length).equals(prefix) || V1_PREFIX.subarray(0, prefix.length).equals(prefix)) {
     return { kind: 'incomplete' };
@@ -40,7 +31,6 @@ function startsWith(data: Buffer, prefix: Buffer): boolean {
   return data.length >= prefix.length && data.subarray(0, prefix.length).equals(prefix);
 }
 
-// "PROXY TCP4 203.0.113.7 10.0.0.5 51234 22\r\n" or "PROXY UNKNOWN ...\r\n"
 function parseV1(data: Buffer): ProxyHeader {
   const lineEnd = data.subarray(0, V1_MAX_LENGTH).indexOf('\r\n');
   if (lineEnd === -1) {
@@ -65,7 +55,6 @@ function parseV1(data: Buffer): ProxyHeader {
   return { kind: 'header', length, source: { address: sourceAddress, port } };
 }
 
-/** Binary v2 header: 16 fixed bytes (signature, version/command, family, length), then addresses. */
 function parseV2(data: Buffer): ProxyHeader {
   if (data.length < V2_FIXED_LENGTH) return { kind: 'incomplete' };
   const versionCommand = data.readUInt8(12);
@@ -78,7 +67,6 @@ function parseV2(data: Buffer): ProxyHeader {
   if (command === 0x0) return { kind: 'header', length };
   if (command !== 0x1) return { kind: 'invalid', reason: 'unknown PROXY command' };
 
-  // Source address and port; what follows (destination, TLVs) isn't needed.
   const addressBlock = data.subarray(V2_FIXED_LENGTH, length);
   switch (familyProtocol) {
     case 0x11: // TCP over IPv4
@@ -100,7 +88,7 @@ function parseV2(data: Buffer): ProxyHeader {
   }
 }
 
-/** Compressed form ("2001:db8::1"), as Node reports socket addresses. */
+/** Compressed, as Node reports socket addresses, so per-IP limits match. */
 function formatIpv6Address(bytes: Buffer): string {
   const groups: string[] = [];
   for (let byteOffset = 0; byteOffset < 16; byteOffset += 2) groups.push(bytes.readUInt16BE(byteOffset).toString(16));

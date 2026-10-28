@@ -14,11 +14,7 @@ export function createTerminal(channel: ServerChannel, windowSize: WindowSize): 
   return { stdin, stdout: new TerminalOutput(channel, windowSize) };
 }
 
-/**
- * Keystrokes from the SSH client. Ink only accepts input streams that look like
- * a TTY with raw mode support. The client's own terminal is already in raw mode
- * (ssh puts it there), so setRawMode has nothing left to do.
- */
+/** Ink needs a raw-mode TTY; ssh already put the client's terminal in raw mode. */
 export class TerminalInput extends PassThrough {
   readonly isTTY = true;
 
@@ -35,13 +31,7 @@ export class TerminalInput extends PassThrough {
   }
 }
 
-/**
- * Screen output to the SSH client, plus the window size Ink lays out against.
- *
- * There is no kernel PTY between us and the client, so nothing performs the
- * usual "\n" -> "\r\n" translation; without it every line would start where the
- * previous one ended.
- */
+/** No kernel PTY sits in between, so nothing else translates "\n" to "\r\n". */
 export class TerminalOutput extends Writable {
   readonly isTTY = true;
   columns: number;
@@ -58,7 +48,7 @@ export class TerminalOutput extends Writable {
 
   override _write(chunk: string | Buffer, _encoding: BufferEncoding, callback: (error?: Error | null) => void): void {
     if (!this.channel.writable) {
-      // The client has gone; drop output rather than erroring mid-unmount.
+      // Client gone: drop output rather than erroring mid-unmount.
       callback();
       return;
     }

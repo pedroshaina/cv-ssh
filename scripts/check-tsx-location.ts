@@ -1,5 +1,4 @@
-// JSX is the UI's business: a .tsx file anywhere else means UI code has leaked
-// out of src/ui. oxlint has no rule for where a file lives, hence this check.
+// oxlint can't check where a file lives: keep JSX inside src/ui.
 import { readdirSync } from 'node:fs';
 import { sep } from 'node:path';
 

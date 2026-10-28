@@ -7,10 +7,6 @@ export interface HttpServer {
   close(): Promise<void>;
 }
 
-/**
- * The cluster's deployment contract: `GET /health` (the process is alive) and
- * `GET /ready` (it can take visitors) on a plain HTTP port, separate from SSH.
- */
 export function createHttpServer(isReady: () => boolean): HttpServer {
   const server = createServer((request, response) => {
     if (request.method !== 'GET') {

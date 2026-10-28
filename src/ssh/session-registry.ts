@@ -1,19 +1,15 @@
 import type { CvSession } from '../cv-session/cv-session.types.js';
 
 export interface SessionLimits {
-  /** Concurrent CV sessions across all visitors. */
   maxSessions: number;
-  /** Concurrent CV sessions per client IP; 0 disables the check. */
+  /** 0 disables the check. */
   maxSessionsPerIp: number;
 }
 
 export type RefusalReason = 'shutdown' | 'server-full' | 'ip-limit';
 
-/** One CV session's place, held from admission until the session ends. */
 export interface SessionSlot {
-  /** Records the session holding the slot, so shutdown can end it. */
   hold: (session: CvSession) => void;
-  /** Frees the slot; calling it again does nothing. */
   release: () => void;
 }
 
@@ -24,7 +20,6 @@ interface HeldSlot {
   session?: CvSession;
 }
 
-/** Every open CV session: who may start one, and ending them all on shutdown. */
 export class SessionRegistry {
   private readonly heldSlots = new Set<HeldSlot>();
   private shuttingDown = false;
@@ -50,7 +45,6 @@ export class SessionRegistry {
     };
   }
 
-  /** Stops admitting sessions and ends every open one. */
   endAll(): void {
     this.shuttingDown = true;
     for (const heldSlot of this.heldSlots) heldSlot.session?.end('shutdown');

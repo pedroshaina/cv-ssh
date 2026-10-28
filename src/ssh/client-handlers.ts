@@ -14,18 +14,16 @@ export interface ClientContext {
   idleTimeoutMs: number;
 }
 
-/** One SSH connection: authentication, then its session channels. */
 export function handleClient(client: Connection, clientInfo: ClientInfo, context: ClientContext): void {
   const { logger, connectionDeadlines, sessionRegistry, contentDir, idleTimeoutMs } = context;
   const connectionLogger = logger.child({ conn: randomBytes(4).toString('hex'), ip: clientInfo.ip });
   connectionLogger.debug({ client: clientInfo.header.versions.software }, 'connection opened');
 
-  // The TCP listener drops the connection unless a shell starts in time.
   const connectionDeadline = connectionDeadlines.claim(clientInfo.ip, clientInfo.port);
   if (!connectionDeadline) connectionLogger.warn({ port: clientInfo.port }, 'no connection deadline found');
   const onSessionStarted = () => clearTimeout(connectionDeadline);
 
-  // A public CV: let everyone in, whatever auth method their client tries first.
+  // A public CV: accept whatever auth method the client tries first.
   client.on('authentication', (authContext) => authContext.accept());
 
   client.on('ready', () => {

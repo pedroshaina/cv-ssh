@@ -12,11 +12,9 @@ export interface SessionChannelContext {
   sessionRegistry: SessionRegistry;
   contentDir: string;
   idleTimeoutMs: number;
-  /** Called each time a shell starts, so the connection is no longer on a deadline. */
   onSessionStarted: () => void;
 }
 
-/** Offers the CV on a shell with a PTY, and refuses everything else a session can ask for. */
 export function handleSessionChannel(session: Session, context: SessionChannelContext): void {
   const { connectionLogger, clientIp, sessionRegistry } = context;
   let windowSize: WindowSize | undefined;
@@ -59,8 +57,7 @@ export function handleSessionChannel(session: Session, context: SessionChannelCo
         onEnd: admission.slot.release,
       });
     } catch (error) {
-      // ssh2 would swallow this as a client error, and the slot would never
-      // be released.
+      // ssh2 would swallow this as a client error and the slot would leak.
       admission.slot.release();
       connectionLogger.error({ err: error }, 'session failed to start');
       refuseChannel(channel, REFUSAL_MESSAGES['unavailable']);
@@ -80,9 +77,7 @@ export function handleSessionChannel(session: Session, context: SessionChannelCo
     refuseChannel(accept(), REFUSAL_MESSAGES['commands-unsupported']);
   });
 
-  // Nothing but the shell is offered. sftp and other subsystems are worth
-  // a log line; agent and X11 forwarding are client settings some
-  // visitors have on everywhere, and env (LANG etc.) is sent by default.
+  // Subsystems get a log line; agent, X11 and env are sent by ordinary clients.
   session.on('sftp', (_accept, reject) => {
     connectionLogger.info({ subsystem: 'sftp' }, 'subsystem refused');
     reject?.();

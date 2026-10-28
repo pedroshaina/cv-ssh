@@ -2,10 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { CvContent, Header } from './content.types.js';
 
-/**
- * Every `*.md` file in `contentDir` becomes a tab, ordered by filename.
- * Files starting with `_` are not tabs; `_header.md` holds the banner.
- */
+/** Each `*.md` file is a tab, ordered by filename; `_`-prefixed files are not tabs. */
 export function loadContent(contentDir: string): CvContent {
   const sections = readdirSync(contentDir)
     .filter((filename) => filename.endsWith('.md') && !filename.startsWith('_'))
@@ -20,7 +17,6 @@ export function loadContent(contentDir: string): CvContent {
   return { header, sections };
 }
 
-/** `01-about.md` -> "About", `03-side-projects.md` -> "Side projects". */
 function titleFromFilename(filename: string): string {
   const words = filename
     .replace(/\.md$/, '')
@@ -29,7 +25,6 @@ function titleFromFilename(filename: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-/** `# Name` on the first heading line; everything after it is the tagline. */
 function parseHeader(markdown: string): Header | undefined {
   const headingMatch = /^#\s+(.+)$/m.exec(markdown);
   if (!headingMatch?.[1]) return undefined;

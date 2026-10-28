@@ -10,21 +10,13 @@ import { SessionRegistry } from './session-registry.js';
 import { createTcpListener } from './tcp-listener.js';
 
 export interface SshServer {
-  /** Resolves with the bound address once the SSH port is listening. */
   listen(port: number, host: string): Promise<AddressInfo>;
-  /** True while listening and not shutting down. */
   isReady: () => boolean;
-  /**
-   * Stops accepting connections and ends every open session. Calling it again
-   * returns the same promise.
-   */
   shutdown(): Promise<void>;
 }
 
-/** How long open sessions get to receive their goodbye before the process exits. */
 const SHUTDOWN_GRACE_MS = 5000;
 
-/** Loads (or generates) the host key; nothing listens until `listen`. */
 export function createSshServer(config: Config, logger: Logger): SshServer {
   const hostKey = loadOrCreateHostKey(config.hostKeyPath, logger);
   const sessionRegistry = new SessionRegistry({
@@ -45,8 +37,7 @@ export function createSshServer(config: Config, logger: Logger): SshServer {
     }),
   );
 
-  // Hard cap on raw TCP connections, above the session limit so that polite
-  // "server full" messages can still be delivered. Not in @types/ssh2.
+  // Above the session limit so "server full" can still be delivered. Not in @types/ssh2.
   (sshServer as unknown as { maxConnections: number }).maxConnections = config.maxSessions * 2;
 
   const tcpServer = createTcpListener(sshServer, {
@@ -58,9 +49,7 @@ export function createSshServer(config: Config, logger: Logger): SshServer {
 
   async function shutdown(): Promise<void> {
     logger.info({ sessions: sessionRegistry.activeSessionCount }, 'shutting down');
-    // close() stops accepting and calls back once every existing connection
-    // has closed, i.e. once visitors have received their goodbye and their
-    // ssh client has hung up. Exiting earlier would cut that message off.
+    // Calls back once every client has hung up, i.e. after its goodbye arrived.
     const drained = new Promise<void>((resolve) => tcpServer.close(() => resolve()));
     sessionRegistry.endAll();
     let graceTimer: NodeJS.Timeout | undefined;

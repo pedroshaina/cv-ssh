@@ -1,7 +1,6 @@
 import { Box, Text } from 'ink';
 
 interface FooterProps {
-  /** How far down the section is scrolled; omitted when it all fits. */
   scrollPercent?: number;
 }
 

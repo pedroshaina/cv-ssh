@@ -17,9 +17,7 @@ test('list items reflow to the width like paragraphs, ignoring source line break
     lines.every((line) => line.length <= 50),
     lines.join('\n'),
   );
-  // The source broke after "seven"; at width 50 the first line takes more words.
   assert.match(lines[0] ?? '', /seven eight/);
-  // Continuation lines are indented under the bullet's text.
   assert.ok(
     lines.slice(1).every((line) => line.startsWith('    ')),
     lines.join('\n'),

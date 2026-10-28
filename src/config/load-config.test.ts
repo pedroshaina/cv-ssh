@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ConfigError, loadConfig } from './load-config.js';
 
-/** Matches a ConfigError with a line naming `variableName`. */
 function failsOn(variableName: string) {
   return (error: unknown) => error instanceof ConfigError && new RegExp(`^${variableName}: `, 'm').test(error.message);
 }

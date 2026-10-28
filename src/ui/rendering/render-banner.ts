@@ -1,9 +1,8 @@
 import figlet from 'figlet';
 
-// Biggest first; the banner uses the first font that fits the terminal.
+// Biggest first.
 const BANNER_FONTS = ['ANSI Shadow', 'Standard', 'Small'] as const;
 
-/** The name as ASCII art no wider than `maxWidth`, or undefined if no font fits. */
 export function renderBanner(name: string, maxWidth: number): string | undefined {
   for (const font of BANNER_FONTS) {
     const bannerArt = figlet.textSync(name, { font }).replace(/\s+$/, '');

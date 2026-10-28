@@ -12,7 +12,6 @@ interface BannerProps {
   textWidth: number;
 }
 
-/** The name as ASCII art when there's room for it, plain bold text otherwise, then the tagline. */
 export function Banner({ header, columns, rows, textWidth }: BannerProps) {
   const tagline = useMemo(() => renderMarkdown(header.tagline, textWidth), [header.tagline, textWidth]);
   const taglineRows = tagline ? tagline.split('\n').length : 0;

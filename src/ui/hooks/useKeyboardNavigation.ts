@@ -4,13 +4,11 @@ import type { Scroll } from './useScroll.js';
 export interface KeyboardNavigationOptions {
   sectionCount: number;
   activeSectionIndex: number;
-  /** Any index; wraps around past either end. */
   switchSection: (sectionIndex: number) => void;
   scroll: Scroll;
   quit: () => void;
 }
 
-/** The key map: arrows, vim keys, Tab, 1-9, paging, g/G and q. */
 export function useKeyboardNavigation(options: KeyboardNavigationOptions): void {
   const { sectionCount, activeSectionIndex, switchSection, scroll, quit } = options;
 

@@ -2,20 +2,16 @@ import { useRef, useState, type RefObject } from 'react';
 import { useBoxMetrics, type DOMElement } from 'ink';
 
 export interface Scroll {
-  /** Attach to the box that clips the content. */
   viewportRef: RefObject<DOMElement | null>;
-  /** Attach to the full-height content inside the viewport. */
   contentRef: RefObject<DOMElement | null>;
   scrollTop: number;
   maxScrollTop: number;
-  /** Lines one page key moves, keeping a little overlap for context. */
   pageSize: number;
   scrollBy: (lineCount: number) => void;
   scrollToTop: () => void;
   scrollToBottom: () => void;
 }
 
-/** Vertical scrolling of content taller than its viewport. */
 export function useScroll(): Scroll {
   const [requestedScrollTop, setRequestedScrollTop] = useState(0);
   const viewportRef = useRef<DOMElement>(null);

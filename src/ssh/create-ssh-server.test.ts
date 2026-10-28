@@ -1,4 +1,3 @@
-// End-to-end: a real SSH client against a real server on a random port.
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { connect as tcpConnect, createServer, type AddressInfo, type Socket } from 'node:net';
@@ -35,29 +34,23 @@ async function start(overrides: Partial<Config> = {}): Promise<{ server: SshServ
 
 interface Visit {
   channel: ClientChannel;
-  /** Everything received so far, with escape codes stripped. */
   output: () => string;
-  /** Everything received so far, escape codes included. */
   rawOutput: () => string;
   waitFor: (text: string) => Promise<void>;
   exitCode: Promise<number | undefined>;
 }
 
 interface VisitOptions {
-  /** Run this instead of opening a shell (with a PTY). */
   command?: string;
-  /** Sent before SSH, as a relay would. */
   proxyHeader?: string;
 }
 
-/** A TCP connection that starts with `proxyHeader`, as from a relay. */
 function relayed(port: number, proxyHeader: string): Socket {
   const socket = tcpConnect(port, '127.0.0.1');
   socket.write(proxyHeader);
   return socket;
 }
 
-/** Connects and opens a shell or runs a command. */
 function visit(port: number, { command, proxyHeader }: VisitOptions = {}): Promise<Visit> {
   return new Promise((resolve, reject) => {
     const client = new ssh2.Client();
@@ -131,7 +124,6 @@ test('visitors get colour, even though the server has no TTY', async () => {
   try {
     const session = await visit(port);
     await session.waitFor('Hello from the test.');
-    // An SGR colour escape: ESC [ 3x m, or ESC [ 38;5;n m.
     // oxlint-disable-next-line no-control-regex
     assert.match(session.rawOutput(), /\x1b\[(3\d|38;5;\d+)m/);
     session.channel.write('q');
@@ -158,7 +150,6 @@ test('typing keeps a visitor from being disconnected as idle', { timeout: 5000 }
   try {
     const session = await visit(port);
     await session.waitFor('Hello from the test.');
-    // Keys every 150 ms for 900 ms: over twice the idle timeout in total.
     for (let keypress = 0; keypress < 6; keypress++) {
       await new Promise((resolveDelay) => setTimeout(resolveDelay, 150));
       session.channel.write('j');
@@ -171,12 +162,11 @@ test('typing keeps a visitor from being disconnected as idle', { timeout: 5000 }
   }
 });
 
-/** Resolves once the server has closed `socket`. */
 function closed(socket: Socket): Promise<void> {
   return new Promise((resolveClose) => {
     socket.on('error', () => {});
     socket.once('close', () => resolveClose());
-    // Discard what the server sends: a paused socket never reports its close.
+    // A paused socket never reports its close.
     socket.resume();
   });
 }
@@ -252,7 +242,6 @@ test('shutdown sends open sessions off politely', async () => {
   await shutdown;
 });
 
-/** Connects and authenticates, without opening any channel. */
 function connect(port: number): Promise<Client> {
   return new Promise((resolve, reject) => {
     const client = new ssh2.Client();
@@ -262,7 +251,6 @@ function connect(port: number): Promise<Client> {
   });
 }
 
-/** Resolves with the error a client call reports, or fails if it succeeds. */
 function refusal(call: (callback: (error?: Error) => void) => void): Promise<Error> {
   return new Promise((resolve, reject) =>
     call((error) => (error ? resolve(error) : reject(new Error('the server allowed it')))),
@@ -282,7 +270,6 @@ test('shutdown can be called again while it is running, and waits all the same',
 });
 
 test('port forwarding is refused, so the server is no proxy', async () => {
-  // Something reachable from the server, as a LAN host would be.
   let reached = false;
   const target = createServer((socket) => {
     reached = true;
@@ -298,7 +285,7 @@ test('port forwarding is refused, so the server is no proxy', async () => {
     await refusal((callback) => client.forwardOut('127.0.0.1', 12345, '127.0.0.1', targetPort, callback));
     // ssh -R
     await refusal((callback) => client.forwardIn('127.0.0.1', 0, callback));
-    // ssh -L to a Unix socket, e.g. a container runtime's
+    // ssh -L to a Unix socket
     await refusal((callback) => client.openssh_forwardOutStreamLocal('/var/run/docker.sock', callback));
     assert.equal(reached, false);
   } finally {
@@ -328,7 +315,6 @@ test(
   async () => {
     const { server, port } = await start({ proxyProtocol: true, maxSessionsPerIp: 1 });
     try {
-      // All three come from 127.0.0.1; only the header tells them apart.
       const first = await visit(port, { proxyHeader: fromRelay('203.0.113.7') });
       await first.waitFor('Hello from the test.');
       const other = await visit(port, { proxyHeader: fromRelay('198.51.100.9') });

@@ -5,7 +5,6 @@ import type { RefusalReason } from './session-registry.js';
 
 type RefusalMessageKey = RefusalReason | 'no-terminal' | 'commands-unsupported' | 'unavailable';
 
-/** What a visitor reads when the server refuses their session. */
 export const REFUSAL_MESSAGES: Record<RefusalMessageKey, string> = {
   'server-full': 'Too many visitors right now. Please try again in a minute.',
   'ip-limit': 'You already have the maximum number of sessions open from this address.',
@@ -15,7 +14,6 @@ export const REFUSAL_MESSAGES: Record<RefusalMessageKey, string> = {
   unavailable: 'Something went wrong on our side. Please try again in a little while.',
 };
 
-/** Tells the visitor why, then closes the channel with a failing exit status. */
 export function refuseChannel(channel: ServerChannel, message: string): void {
   channel.write(`${message}\r\n`);
   channel.exit(1);
@@ -23,11 +21,8 @@ export function refuseChannel(channel: ServerChannel, message: string): void {
 }
 
 /**
- * Forwarding would turn the server into a proxy into whatever network it
- * runs in. ssh2 already rejects request types nobody listens for; these
- * handlers make that explicit, so adding a listener elsewhere can't
- * silently enable it, and log each attempt. No real visitor's ssh client
- * sends these, so every line is someone probing.
+ * Forwarding would make the server a proxy into its network. ssh2 already
+ * rejects unhandled requests; this makes it explicit and logs the probing.
  */
 export function refuseForwarding(client: Connection, connectionLogger: Logger): void {
   client.on('tcpip', (_accept, reject, { destIP, destPort }) => {
