@@ -76,11 +76,13 @@ function visit(port: number, { command, proxyHeader, window }: VisitOptions = {}
           });
         });
         const output = () => stripVTControlCharacters(receivedText);
+        // Rejects once the channel closes without it, so a refusal fails the test instead of hanging it.
         const waitFor = (text: string) =>
-          new Promise<void>((resolveWait) => {
+          new Promise<void>((resolveWait, rejectWait) => {
             const check = () => output().includes(text) && resolveWait();
             waiters.push(check);
             check();
+            void exitCode.then(() => rejectWait(new Error(`closed before showing "${text}":\n${output()}`)));
           });
         resolve({ channel, output, rawOutput: () => receivedText, waitFor, exitCode, disconnect: () => client.end() });
       };
@@ -248,29 +250,20 @@ test('a shell without a terminal is told it needs one', async () => {
   }
 });
 
-/** Fails rather than hangs when the session is refused instead of showing the CV. */
-async function assertAdmitted(session: Visit): Promise<void> {
-  const outcome = await Promise.race([
-    session.waitFor('Hello from the test.').then(() => 'admitted'),
-    session.exitCode.then(() => 'refused'),
-  ]);
-  assert.equal(outcome, 'admitted', session.output());
-}
-
 test('a visitor who quits or disconnects frees their session slot', { timeout: 5000 }, async () => {
   const { server, port } = await start({ maxSessions: 1 });
   try {
     const quitter = await visit(port);
-    await assertAdmitted(quitter);
+    await quitter.waitFor('Hello from the test.');
     quitter.channel.write('q');
     await quitter.exitCode;
 
     const dropper = await visit(port);
-    await assertAdmitted(dropper);
+    await dropper.waitFor('Hello from the test.');
     dropper.disconnect();
 
     const next = await visit(port);
-    await assertAdmitted(next);
+    await next.waitFor('Hello from the test.');
     next.channel.write('q');
     assert.equal(await next.exitCode, 0);
   } finally {
