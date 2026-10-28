@@ -29,6 +29,7 @@ const httpAddress = await httpServer
   .catch((error: unknown) => logAndExit(error, 'health port unavailable'));
 logger.info({ port: httpAddress.port }, 'health endpoints listening');
 
+// `on`, not `once`: signal-exit (via Ink) kills us when no listeners remain.
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {
   process.on(signal, () => {
     // /ready turns 503 as soon as shutdown starts; /health stays up until exit.
