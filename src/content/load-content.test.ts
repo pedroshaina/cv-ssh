@@ -17,11 +17,12 @@ test('every Markdown file is a tab, ordered by filename, titled from it', () => 
     '01-about.md': '# About',
     'notes.txt': 'ignored',
   });
-  const { sections } = loadContent(contentDir);
+  const { header, sections } = loadContent(contentDir);
   assert.deepEqual(
     sections.map((section) => section.title),
     ['About', 'Side projects'],
   );
+  assert.equal(header, undefined);
 });
 
 test('_header.md is the banner, not a tab', () => {
@@ -35,8 +36,4 @@ test('_header.md is the banner, not a tab', () => {
     sections.map((section) => section.title),
     ['About'],
   );
-});
-
-test('no _header.md means no banner', () => {
-  assert.equal(loadContent(createContentDir({ '01-about.md': '# About' })).header, undefined);
 });

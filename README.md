@@ -9,7 +9,7 @@ ssh -p 2222 localhost   # when running locally
 
 ## How it works
 
-There is no shell on the other end. The SSH server *is* the app:
+There is no shell on the other end. The SSH server _is_ the app:
 
 - [`ssh2`](https://github.com/mscdotnet/ssh2) accepts every connection (any auth method), waits
   for the client's PTY request and opens the shell channel.
@@ -28,16 +28,16 @@ There is no shell on the other end. The SSH server *is* the app:
 
 Everything is in `content/`, read on every connection (no restart needed):
 
-| File | Becomes |
-|---|---|
-| `_header.md` | The banner: its `# Heading` is the name, the rest the tagline |
+| File          | Becomes                                                         |
+| ------------- | --------------------------------------------------------------- |
+| `_header.md`  | The banner: its `# Heading` is the name, the rest the tagline   |
 | `NN-title.md` | A tab, ordered by `NN`; `03-side-projects.md` → "Side projects" |
 
 Files starting with `_` are never tabs.
 
 Paragraphs and list items are re-wrapped to the visitor's terminal (at most 80 columns), so line
 breaks in the source don't matter: consecutive lines join into one. Put things that must stay on
-separate lines in a list (`- **Email:** …`) or join them with ` · `.
+separate lines in a list (`- **Email:** …`) or join them with a spaced middle dot (`" · "`).
 
 ## Development
 
@@ -48,28 +48,85 @@ pnpm install
 pnpm dev          # server on :2222 with pretty logs, restarts on code changes
 pnpm test         # unit tests + end-to-end SSH sessions against a real server
 pnpm typecheck
+pnpm lint         # oxlint, type-aware
+pnpm format       # prettier --write
+pnpm check        # typecheck, lint, format check and tests: run before opening a PR
 ```
+
+CI runs the same: `release.yaml` typechecks and tests, `check.yaml` lints and checks formatting.
 
 Keys: ←/→ (or h/l, Tab) sections, 1–9 jump, ↑/↓ (or j/k) scroll, space/b page, g/G top/bottom,
 q to quit.
+
+## Code layout and conventions
+
+One folder per domain; code used by a single domain lives inside it.
+
+```
+src/
+  main.ts            entry point: config, startup checks, both servers, signals
+  config/            environment variables to a validated Config (zod)
+  logging/           the pino logger
+  net/               helpers shared by the SSH and HTTP servers
+  http/              GET /health and /ready
+  ssh/               the SSH server: TCP listener and connection deadlines, session admission,
+                     refusals; proxy-protocol/ parses PROXY headers
+  cv-session/        one visitor's session: mounts the app on a channel, idle timeout, goodbye
+  terminal/          makes an SSH channel look like a TTY to Ink
+  content/           reads the Markdown in CONTENT_DIR
+  ui/                the Ink app, the only place with JSX: components/, hooks/, and
+                     rendering/ (Markdown and the banner to ANSI)
+```
+
+Dependencies point one way: `ssh` → `cv-session` → `terminal`, `content`, `ui`.
+
+The rules, and what enforces them:
+
+| Rule                                                                                                                                              | Enforced by                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| Named exports only                                                                                                                                | lint (`import/no-default-export`)        |
+| No barrel or `index` files: import the file that defines the thing                                                                                | lint (`no-restricted-imports`)           |
+| File names in kebab-case; components (and `App.tsx`) in PascalCase; hooks in camelCase (`useScroll.ts`)                                           | lint (`unicorn/filename-case`)           |
+| `.tsx` only under `src/ui/`                                                                                                                       | lint (`scripts/check-tsx-location.ts`)   |
+| Expressive names: no single letters, except `z` (zod), `t` (i18n) and `_`                                                                         | lint (`id-length`)                       |
+| Every promise is awaited, handled, or deliberately marked `void`                                                                                  | lint (`typescript/no-floating-promises`) |
+| A file is named after its main export (`create-ssh-server.ts` → `createSshServer`); helpers only it uses stay private in it                       | review                                   |
+| Types and constants live with the code that produces them; a separate `*.types.ts` or `*.constants.ts` file only when another folder imports them | review                                   |
+| Comments say why, not what                                                                                                                        | review                                   |
+
+Tests sit next to the code as `*.test.ts` (`node:test`). `src/ssh/create-ssh-server.test.ts` drives
+a real SSH client against a real server; `src/main.test.ts` runs the entry point itself.
+
+Lint rules switched off on purpose (`.oxlintrc.json`): `react/react-in-jsx-scope` (the automatic
+JSX runtime needs no React import), `typescript/no-unsafe-type-assertion` (the remaining casts are
+deliberate, such as ssh2's untyped `maxConnections`) and `typescript/consistent-return` (it misreads
+functions that never return; `tsc` already checks return paths).
+
+`src/terminal/force-color-env.ts` must run before chalk loads, so every entry point (`pnpm dev`,
+`pnpm start`, `pnpm test`, the Dockerfile) loads it with `node --import` rather than relying on
+import order.
 
 ## Configuration
 
 Environment variables, all optional. They are validated at startup: an invalid value stops the
 server with a message naming the variable, and an empty value counts as unset (the default applies).
+Ports must be 0 to 65535; the timeouts and `MAX_SESSIONS` must be at least 1. `CONTENT_DIR` is also
+read once at startup, so a missing or unreadable directory stops the server there rather than at
+the first visitor.
 
-| Variable | Default | |
-|---|---|---|
-| `PORT` | `2222` | SSH port |
-| `HEALTH_PORT` | `8080` | HTTP `GET /health` and `GET /ready` |
-| `HOST_KEY_PATH` | `.data/host_ed25519` | Server host key; generated if missing |
-| `CONTENT_DIR` | `content` | Markdown directory |
-| `IDLE_TIMEOUT_SECONDS` | `180` | Disconnect after this long without a keypress |
-| `MAX_SESSIONS` | `20` | Concurrent sessions in total |
-| `MAX_SESSIONS_PER_IP` | `2` | Concurrent sessions per client IP; `0` disables |
-| `HANDSHAKE_TIMEOUT_SECONDS` | `30` | Time to connect and authenticate |
-| `PROXY_PROTOCOL` | `false` | Require a PROXY protocol header (v1 or v2) on every connection; see below |
-| `LOG_LEVEL` | `info` | pino level; logs are JSON lines on stdout |
+| Variable                    | Default              |                                                                               |
+| --------------------------- | -------------------- | ----------------------------------------------------------------------------- |
+| `HOST`                      | `0.0.0.0`            | Address both servers listen on                                                |
+| `PORT`                      | `2222`               | SSH port                                                                      |
+| `HEALTH_PORT`               | `8080`               | HTTP `GET /health` and `GET /ready`                                           |
+| `HOST_KEY_PATH`             | `.data/host_ed25519` | Server host key; generated if missing                                         |
+| `CONTENT_DIR`               | `content`            | Markdown directory                                                            |
+| `IDLE_TIMEOUT_SECONDS`      | `180`                | Disconnect after this long without a keypress                                 |
+| `MAX_SESSIONS`              | `20`                 | Concurrent sessions in total                                                  |
+| `MAX_SESSIONS_PER_IP`       | `2`                  | Concurrent sessions per client IP; `0` disables                               |
+| `HANDSHAKE_TIMEOUT_SECONDS` | `30`                 | Time from connecting to the CV showing (handshake, login and opening a shell) |
+| `PROXY_PROTOCOL`            | `false`              | Require a PROXY protocol header (v1 or v2) on every connection; see below     |
+| `LOG_LEVEL`                 | `info`               | pino level; logs are JSON lines on stdout                                     |
 
 Behind a relay (a TCP proxy in front of the server), every connection comes from the relay's
 address, so the per-IP limit and the logs see one visitor. Set `PROXY_PROTOCOL=true` and have the

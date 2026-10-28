@@ -4,19 +4,19 @@ import { createTerminal } from '../terminal/create-terminal.js';
 import type { WindowSize } from '../terminal/window-size.types.js';
 import { mountApp } from '../ui/mount-app.js';
 import type { CvSession, CvSessionOptions, EndReason } from './cv-session.types.js';
-import { GOODBYE_MESSAGES } from './goodbye-messages.js';
+import { GOODBYE_MESSAGES } from './goodbye-messages.constants.js';
 
-/** Mounts the CV app on one SSH shell channel; closes the channel when the app exits. */
 export function startCvSession(channel: ServerChannel, windowSize: WindowSize, options: CvSessionOptions): CvSession {
   const { logger } = options;
+  // Per connection, so edits need no restart; first, so a throw leaves the channel untouched.
+  const content = loadContent(options.contentDir);
   const terminal = createTerminal(channel, windowSize);
   const startedAt = Date.now();
   const sectionsViewed = new Set<string>();
   let endReason: EndReason = 'quit';
 
-  // Read per connection so content edits show up without a restart.
   const inkInstance = mountApp(terminal, {
-    content: loadContent(options.contentDir),
+    content,
     onSectionView: (title) => sectionsViewed.add(title),
   });
 
@@ -28,8 +28,7 @@ export function startCvSession(channel: ServerChannel, windowSize: WindowSize, o
       inkInstance.unmount();
     }, options.idleTimeoutMs);
   };
-  // Listen on the channel, not terminal.stdin: a 'data' listener would put
-  // that stream in flowing mode and starve Ink's read() loop.
+  // Not terminal.stdin: a 'data' listener there would starve Ink's read() loop.
   channel.on('data', resetIdleTimer);
   resetIdleTimer();
 
@@ -54,8 +53,7 @@ export function startCvSession(channel: ServerChannel, windowSize: WindowSize, o
       );
       options.onEnd();
       if (isChannelClosed) return;
-      // Through the same stream as Ink's output, so it lands after the
-      // alternate screen has been restored.
+      // Same stream as Ink, so it lands after the alternate screen is restored.
       return new Promise<void>((resolve) => {
         terminal.stdout.end(GOODBYE_MESSAGES[endReason] ?? '', () => {
           channel.exit(endReason === 'error' ? 1 : 0);

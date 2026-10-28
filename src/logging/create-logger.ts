@@ -3,8 +3,8 @@ import type { LogLevel } from '../config/config.schema.js';
 
 export type Logger = pino.Logger;
 
-// JSON lines on stdout for the cluster's log collector; `pnpm dev` pipes
-// through pino-pretty for humans.
+export const DEFAULT_LOG_LEVEL: LogLevel = 'info';
+
 export function createLogger(level: LogLevel): Logger {
   return pino({ level });
 }

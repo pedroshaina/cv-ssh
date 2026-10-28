@@ -1,12 +1,10 @@
 import type { Socket } from 'node:net';
-import { parseProxyHeader } from './parse-proxy-header.js';
-import type { ProxyHeaderReadResult } from './proxy-header.types.js';
+import { parseProxyHeader, type ProxySource } from './parse-proxy-header.js';
 
-/**
- * Buffers what the socket sends until a whole PROXY header has arrived, then
- * stops reading and pauses the socket so no SSH bytes are lost before the
- * caller hands it on. Logging and dropping bad connections is the caller's job.
- */
+export type ProxyHeaderReadResult =
+  { kind: 'header'; source?: ProxySource; remainingBytes: Buffer } | { kind: 'invalid'; reason: string };
+
+/** Leaves the socket paused, so no SSH bytes are lost before it is handed on. */
 export function readProxyHeader(socket: Socket): Promise<ProxyHeaderReadResult> {
   return new Promise((resolve) => {
     let receivedBytes = Buffer.alloc(0);

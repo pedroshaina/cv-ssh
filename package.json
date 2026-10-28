@@ -2,14 +2,23 @@
   "name": "cv-ssh",
   "version": "1.0.0",
   "description": "My CV as an SSH-served terminal app",
-  "scripts": {
-    "dev": "tsx watch src/main.ts | pino-pretty",
-    "build": "tsc -p tsconfig.build.json",
-    "start": "node dist/main.js",
-    "typecheck": "tsc --noEmit",
-    "test": "LOG_LEVEL=silent node --import tsx --test \"src/**/*.test.ts\""
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
   },
-  "author": "",
+  "scripts": {
+    "dev": "tsx watch --import ./src/terminal/force-color-env.ts src/main.ts | pino-pretty",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node --import ./dist/terminal/force-color-env.js dist/main.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint --type-aware --deny-warnings && node scripts/check-tsx-location.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "node --import tsx --import ./src/terminal/force-color-env.ts --test --test-force-exit \"src/**/*.test.ts\"",
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test"
+  },
+  "packageManager": "pnpm@12.15.0",
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
@@ -17,8 +26,6 @@
       "onFail": "download"
     }
   },
-  "packageManager": "pnpm@12.15.0",
-  "type": "module",
   "dependencies": {
     "figlet": "^1.12.0",
     "ink": "^8.0.0",
@@ -35,9 +42,11 @@
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/ssh2": "^1.15.6",
+    "oxlint": "^1.89.0",
+    "oxlint-tsgolint": "^7.0.2005",
     "pino-pretty": "^13.2.0",
+    "prettier": "^3.9.10",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
-  },
-  "private": true
+  }
 }

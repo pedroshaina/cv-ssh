@@ -5,7 +5,6 @@ export interface Section {
 
 export interface Header {
   name: string;
-  /** Markdown shown under the name. */
   tagline: string;
 }
 
