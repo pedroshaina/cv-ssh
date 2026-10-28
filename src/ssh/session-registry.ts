@@ -12,9 +12,9 @@ export type RefusalReason = 'shutdown' | 'server-full' | 'ip-limit';
 /** One CV session's place, held from admission until the session ends. */
 export interface SessionSlot {
   /** Records the session holding the slot, so shutdown can end it. */
-  hold(session: CvSession): void;
+  hold: (session: CvSession) => void;
   /** Frees the slot; calling it again does nothing. */
-  release(): void;
+  release: () => void;
 }
 
 export type Admission = { ok: true; slot: SessionSlot } | { ok: false; reason: RefusalReason };

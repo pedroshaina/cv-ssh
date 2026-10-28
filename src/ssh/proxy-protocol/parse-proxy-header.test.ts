@@ -17,7 +17,10 @@ function proxyV2(source: { address: string; port: number } | 'local'): Buffer {
   ports.writeUInt16BE(source.port, 0);
   ports.writeUInt16BE(22, 2);
   const destination = isIpv6 ? '0:0:0:0:0:0:0:1' : '10.0.0.5';
-  const addressBlock = Buffer.concat([Buffer.from([...addressBytes(source.address), ...addressBytes(destination)]), ports]);
+  const addressBlock = Buffer.concat([
+    Buffer.from([...addressBytes(source.address), ...addressBytes(destination)]),
+    ports,
+  ]);
   const fixedPart = Buffer.from([0x21, isIpv6 ? 0x21 : 0x11, 0, 0]);
   fixedPart.writeUInt16BE(addressBlock.length, 2);
   return Buffer.concat([signature, fixedPart, addressBlock]);

@@ -30,4 +30,5 @@ COPY --from=build /app/dist ./dist
 COPY --from=build --chown=nonroot:nonroot /data /data
 COPY content ./content
 EXPOSE 2222 8080
-CMD ["dist/main.js"]
+# force-color-env must run before chalk loads; see that file.
+CMD ["--import", "./dist/terminal/force-color-env.js", "dist/main.js"]

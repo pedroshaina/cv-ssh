@@ -1,0 +1,9 @@
+dist
+pnpm-lock.yaml
+# The CV itself: reflowing it would change what visitors see.
+content
+# Historical design notes and plans, kept as written.
+docs
+# Shared CI templates: edited only where they say so.
+.github/workflows/release.yaml
+.github/workflows/lint.yaml

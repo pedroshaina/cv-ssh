@@ -8,6 +8,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
+/** How `pnpm dev` starts the server, minus the file watching. */
+const MAIN_ARGUMENTS = ['--import', 'tsx', '--import', './src/terminal/force-color-env.ts', 'src/main.ts'];
+
 function tempDir(): string {
   return mkdtempSync(join(tmpdir(), 'cv-ssh-test-'));
 }
@@ -34,7 +37,7 @@ interface Exit {
 
 function runMain(env: Record<string, string>): Promise<Exit> {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, ['--import', 'tsx', 'src/main.ts'], {
+    const child = spawn(process.execPath, MAIN_ARGUMENTS, {
       env: { PATH: process.env.PATH, ...env },
       stdio: ['ignore', 'pipe', 'ignore'],
     });
@@ -100,7 +103,7 @@ test('invalid configuration is logged as a fatal line naming the variable', { ti
 });
 
 test('a working server starts, then exits cleanly on SIGTERM', { timeout: 10_000 }, async () => {
-  const child = spawn(process.execPath, ['--import', 'tsx', 'src/main.ts'], {
+  const child = spawn(process.execPath, MAIN_ARGUMENTS, {
     env: { PATH: process.env.PATH, ...workingEnv() },
     stdio: ['ignore', 'pipe', 'ignore'],
   });

@@ -70,7 +70,9 @@ export const configSchema = z
     PROXY_PROTOCOL: flag(false),
     LOG_LEVEL: emptyAsUnset(
       z
-        .enum(LOG_LEVELS, { error: (issue) => `expected one of ${LOG_LEVELS.join(', ')}, got "${String(issue.input)}"` })
+        .enum(LOG_LEVELS, {
+          error: (issue) => `expected one of ${LOG_LEVELS.join(', ')}, got "${String(issue.input)}"`,
+        })
         .default('info'),
     ),
   })

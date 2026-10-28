@@ -1,5 +1,4 @@
 // End-to-end: a real SSH client against a real server on a random port.
-import '../terminal/force-color-env.js';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { connect as tcpConnect, createServer, type AddressInfo, type Socket } from 'node:net';
@@ -22,12 +21,15 @@ async function start(overrides: Partial<Config> = {}): Promise<{ server: SshServ
   writeFileSync(join(contentDir, '_header.md'), '# Ada Lovelace\n\nAnalyst\n');
   writeFileSync(join(contentDir, '01-about.md'), '# About\n\nHello from the test.\n');
   writeFileSync(join(contentDir, '02-contact.md'), '# Contact\n\nReach me by pigeon.\n');
-  const server = createSshServer({
-    ...loadConfig({}),
-    hostKeyPath: join(tempDir(), 'host_key'),
-    contentDir,
-    ...overrides,
-  }, createLogger('silent'));
+  const server = createSshServer(
+    {
+      ...loadConfig({}),
+      hostKeyPath: join(tempDir(), 'host_key'),
+      contentDir,
+      ...overrides,
+    },
+    createLogger('silent'),
+  );
   return { server, port: (await server.listen(0, '127.0.0.1')).port };
 }
 
@@ -129,6 +131,8 @@ test('visitors get colour, even though the server has no TTY', async () => {
   try {
     const session = await visit(port);
     await session.waitFor('Hello from the test.');
+    // An SGR colour escape: ESC [ 3x m, or ESC [ 38;5;n m.
+    // oxlint-disable-next-line no-control-regex
     assert.match(session.rawOutput(), /\x1b\[(3\d|38;5;\d+)m/);
     session.channel.write('q');
     await session.exitCode;
@@ -318,22 +322,26 @@ test('sftp and other subsystems are refused', async () => {
 
 const fromRelay = (ip: string) => `PROXY TCP4 ${ip} 10.0.0.5 51234 22\r\n`;
 
-test('behind a relay, the per-IP limit applies to the visitor address in the PROXY header', { timeout: 5000 }, async () => {
-  const { server, port } = await start({ proxyProtocol: true, maxSessionsPerIp: 1 });
-  try {
-    // All three come from 127.0.0.1; only the header tells them apart.
-    const first = await visit(port, { proxyHeader: fromRelay('203.0.113.7') });
-    await first.waitFor('Hello from the test.');
-    const other = await visit(port, { proxyHeader: fromRelay('198.51.100.9') });
-    await other.waitFor('Hello from the test.');
+test(
+  'behind a relay, the per-IP limit applies to the visitor address in the PROXY header',
+  { timeout: 5000 },
+  async () => {
+    const { server, port } = await start({ proxyProtocol: true, maxSessionsPerIp: 1 });
+    try {
+      // All three come from 127.0.0.1; only the header tells them apart.
+      const first = await visit(port, { proxyHeader: fromRelay('203.0.113.7') });
+      await first.waitFor('Hello from the test.');
+      const other = await visit(port, { proxyHeader: fromRelay('198.51.100.9') });
+      await other.waitFor('Hello from the test.');
 
-    const again = await visit(port, { proxyHeader: fromRelay('203.0.113.7') });
-    assert.equal(await again.exitCode, 1);
-    assert.match(again.output(), /maximum number of sessions/);
-  } finally {
-    await server.shutdown();
-  }
-});
+      const again = await visit(port, { proxyHeader: fromRelay('203.0.113.7') });
+      assert.equal(await again.exitCode, 1);
+      assert.match(again.output(), /maximum number of sessions/);
+    } finally {
+      await server.shutdown();
+    }
+  },
+);
 
 test('behind a relay, a connection reset mid-header does not take the server down', { timeout: 5000 }, async () => {
   const { server, port } = await start({ proxyProtocol: true });

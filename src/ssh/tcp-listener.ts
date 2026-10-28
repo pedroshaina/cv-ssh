@@ -42,7 +42,10 @@ export function createTcpListener(sshServer: Ssh2Server, options: TcpListenerOpt
     // ssh2 resumes the socket itself once its data listener is attached.
     const handOver = (earlySshBytes?: Buffer) => {
       if (!connectionDeadlines.register(socket, connectionDeadline)) {
-        logger.warn({ peer: socket.remoteAddress, port: socket.remotePort }, 'connection dropped: address already in use');
+        logger.warn(
+          { peer: socket.remoteAddress, port: socket.remotePort },
+          'connection dropped: address already in use',
+        );
         socket.destroy();
         return;
       }

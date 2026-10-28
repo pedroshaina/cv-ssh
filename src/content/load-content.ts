@@ -9,7 +9,7 @@ import type { CvContent, Header } from './content.types.js';
 export function loadContent(contentDir: string): CvContent {
   const sections = readdirSync(contentDir)
     .filter((filename) => filename.endsWith('.md') && !filename.startsWith('_'))
-    .sort()
+    .toSorted()
     .map((filename) => ({
       title: titleFromFilename(filename),
       markdown: readFileSync(join(contentDir, filename), 'utf8'),

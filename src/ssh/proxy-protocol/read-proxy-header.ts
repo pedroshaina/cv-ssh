@@ -3,8 +3,7 @@ import { parseProxyHeader, type ProxySource } from './parse-proxy-header.js';
 
 /** A complete header read off a socket, with the SSH bytes that arrived after it. */
 export type ProxyHeaderReadResult =
-  | { kind: 'header'; source?: ProxySource; remainingBytes: Buffer }
-  | { kind: 'invalid'; reason: string };
+  { kind: 'header'; source?: ProxySource; remainingBytes: Buffer } | { kind: 'invalid'; reason: string };
 
 /**
  * Buffers what the socket sends until a whole PROXY header has arrived, then

@@ -1,5 +1,3 @@
-// Must stay the first import: it sets colour env vars before chalk loads.
-import './terminal/force-color-env.js';
 import { loadConfig } from './config/load-config.js';
 import { loadContent } from './content/load-content.js';
 import { createHttpServer } from './http/create-http-server.js';

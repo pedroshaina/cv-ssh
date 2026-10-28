@@ -50,7 +50,7 @@ export function App({ content, onSectionView }: AppProps) {
     return <Text color="red">No content found. Add Markdown files to the content directory.</Text>;
   }
 
-  const { maxScrollTop, scrollTop } = scroll;
+  const { viewportRef, contentRef, maxScrollTop, scrollTop } = scroll;
   const scrollPercent = maxScrollTop === 0 ? 100 : Math.round((scrollTop / maxScrollTop) * 100);
 
   return (
@@ -59,8 +59,8 @@ export function App({ content, onSectionView }: AppProps) {
 
       <TabBar sections={sections} activeSectionIndex={activeSectionIndex} />
 
-      <Box ref={scroll.viewportRef} flexGrow={1} overflow="hidden" contentOffsetY={scrollTop} flexDirection="column">
-        <Box ref={scroll.contentRef} flexDirection="column" flexShrink={0} paddingX={PADDING_X} paddingY={1}>
+      <Box ref={viewportRef} flexGrow={1} overflow="hidden" contentOffsetY={scrollTop} flexDirection="column">
+        <Box ref={contentRef} flexDirection="column" flexShrink={0} paddingX={PADDING_X} paddingY={1}>
           <Text>{renderedSection}</Text>
         </Box>
       </Box>

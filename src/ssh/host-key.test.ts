@@ -8,6 +8,6 @@ import { generateHostKey } from './host-key.js';
 test('every generated host key can be loaded by ssh2', () => {
   for (let attempt = 0; attempt < 2000; attempt++) {
     const parsedKey = ssh2.utils.parseKey(generateHostKey());
-    assert.ok(!(parsedKey instanceof Error), `attempt ${attempt}: ${String(parsedKey)}`);
+    if (parsedKey instanceof Error) assert.fail(`attempt ${attempt}: ${parsedKey.message}`);
   }
 });

@@ -52,7 +52,14 @@ function parseV1(data: Buffer): ProxyHeader {
 
   const port = Number(sourcePort);
   const family = protocol === 'TCP4' ? 4 : protocol === 'TCP6' ? 6 : undefined;
-  if (!family || !sourceAddress || isIP(sourceAddress) !== family || !Number.isInteger(port) || port < 0 || port > 65535) {
+  if (
+    !family ||
+    !sourceAddress ||
+    isIP(sourceAddress) !== family ||
+    !Number.isInteger(port) ||
+    port < 0 ||
+    port > 65535
+  ) {
     return { kind: 'invalid', reason: 'malformed PROXY line' };
   }
   return { kind: 'header', length, source: { address: sourceAddress, port } };
