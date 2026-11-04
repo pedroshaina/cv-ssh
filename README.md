@@ -110,7 +110,8 @@ import order.
 
 Environment variables, all optional. They are validated at startup: an invalid value stops the
 server with a message naming the variable, and an empty value counts as unset (the default applies).
-Ports must be 0 to 65535; the timeouts and `MAX_SESSIONS` must be at least 1. `CONTENT_DIR` is also
+Ports must be 0 to 65535 (`HEALTH_PORT`, the old name of `HTTP_PORT`, is still read when `HTTP_PORT`
+is unset, with a deprecation warning); the timeouts and `MAX_SESSIONS` must be at least 1. `CONTENT_DIR` is also
 read once at startup, so a missing or unreadable directory stops the server there rather than at
 the first visitor.
 
@@ -118,7 +119,7 @@ the first visitor.
 | --------------------------- | -------------------- | ----------------------------------------------------------------------------- |
 | `HOST`                      | `0.0.0.0`            | Address both servers listen on                                                |
 | `PORT`                      | `2222`               | SSH port                                                                      |
-| `HEALTH_PORT`               | `8080`               | HTTP `GET /health` and `GET /ready`                                           |
+| `HTTP_PORT`                 | `8080`               | HTTP: the web page, `GET /health` and `GET /ready`                            |
 | `HOST_KEY_PATH`             | `.data/host_ed25519` | Server host key; generated if missing                                         |
 | `CONTENT_DIR`               | `content`            | Markdown directory                                                            |
 | `IDLE_TIMEOUT_SECONDS`      | `180`                | Disconnect after this long without a keypress                                 |
