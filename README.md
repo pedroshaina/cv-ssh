@@ -32,12 +32,13 @@ reads without JavaScript (link previews, crawlers, print). The page's script the
 the window's width from `GET /cv.json?cols=N` and adds the TUI's keys, tabs and touch gestures.
 Scripts and the stylesheet are plain files in `public/`, served from `/assets/`.
 
-- The page types `ssh cv.pedromartins.dev.br` and "connects" first; any key, click or tap skips
-  it, and so does `prefers-reduced-motion`.
+- On wide screens the terminal opens as a window, maximizes to the whole viewport after a second,
+  then types `ssh cv.pedromartins.dev.br` and "connects" (phones go straight to the typing). Any
+  key, click or tap skips it, and so does `prefers-reduced-motion`.
 - Same keys as the TUI. Ctrl+C copies when text is selected and quits otherwise; Cmd and Alt
   shortcuts are left to the browser. On touch screens: tap a tab, swipe sideways between sections.
-- Quitting (`q`, Esc, or the red dot) prints the SSH goodbye, then offers Reconnect and the real
-  `ssh` command to copy.
+- Quitting (`q`, Esc, or the red dot) prints the SSH goodbye, then "If you want to go back, click
+  Reconnect below or try it yourself:" with Reconnect and the real `ssh` command to copy.
 - `public/` is JavaScript with JSDoc types, checked by `tsconfig.public.json` (part of
   `pnpm typecheck`); its pure parts (`key-map.js`, `columns.js`, `swipe.js`) have tests next to them.
   There is no build step: the server reads the files as they are, so edits show on reload.

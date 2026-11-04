@@ -25,6 +25,7 @@ const panels = /** @type {HTMLElement[]} */ ([...document.querySelectorAll('.pan
 const intro = /** @type {HTMLElement} */ (document.querySelector('.intro'));
 const closed = /** @type {HTMLElement} */ (document.querySelector('.closed'));
 const goodbye = /** @type {HTMLElement} */ (document.querySelector('.goodbye'));
+const comeBack = /** @type {HTMLElement} */ (document.querySelector('.come-back'));
 const reconnectButton = /** @type {HTMLButtonElement} */ (document.querySelector('.reconnect'));
 const copyButton = /** @type {HTMLButtonElement} */ (document.querySelector('.copy'));
 const sshCommand = /** @type {HTMLElement} */ (document.querySelector('.ssh-command'));
@@ -237,7 +238,7 @@ function endSession() {
   runningIntro?.skip();
   screen.dataset.state = 'closed';
   closed.hidden = false;
-  live.textContent = `${goodbye.textContent ?? ''} Connection to ${sshHost} closed.`;
+  live.textContent = `${goodbye.textContent ?? ''} Connection to ${sshHost} closed. ${comeBack.textContent ?? ''}`;
   reconnectButton.focus();
 }
 
@@ -277,9 +278,43 @@ const linkedIndex = panels.findIndex((panel) => `#${panel.id}` === location.hash
 showSection(linkedIndex >= 0 ? linkedIndex : 0);
 live.textContent = '';
 void document.fonts.ready.then(renderForWidth);
-runningIntro = playIntro({
-  overlay: intro,
-  command: `ssh ${sshHost}`,
-  onDone: enterTui,
-  reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
-});
+
+// Opening: on wide screens the terminal starts as a window, maximizes, then ssh types itself.
+
+const WINDOWED_MS = 1000;
+/** A little longer than the .window transition in style.css. */
+const MAXIMIZE_MS = 450;
+
+function startTyping() {
+  runningIntro = playIntro({
+    overlay: intro,
+    command: `ssh ${sshHost}`,
+    onDone: enterTui,
+    reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+  });
+}
+
+function maximize() {
+  root.classList.remove('windowed');
+  // The window is getting wider: once the transition ends, render the CV for its new width
+  // (resize doesn't fire for this).
+  window.setTimeout(() => void renderForWidth(), MAXIMIZE_MS);
+}
+
+if (root.classList.contains('windowed')) {
+  let openingTimer = window.setTimeout(() => {
+    maximize();
+    openingTimer = window.setTimeout(startTyping, MAXIMIZE_MS);
+  }, WINDOWED_MS);
+  // Until the typing starts, a skip maximizes at once and goes straight to the CV.
+  runningIntro = {
+    skip() {
+      window.clearTimeout(openingTimer);
+      maximize();
+      intro.hidden = true;
+      enterTui();
+    },
+  };
+} else {
+  startTyping();
+}

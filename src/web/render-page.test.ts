@@ -92,3 +92,11 @@ test('the session end screen is in the page, hidden, with the SSH goodbye and th
   assert.match(page, /<code class="ssh-command">ssh cv.pedromartins.dev.br<\/code>/);
   assert.match(page, /<button class="copy" type="button">Copy<\/button>/);
 });
+
+test('after quitting, the end screen says how to come back', () => {
+  assert.ok(
+    renderPage(view).includes(
+      '<p class="come-back">If you want to go back, click Reconnect below or try it yourself:</p>',
+    ),
+  );
+});

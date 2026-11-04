@@ -65,5 +65,5 @@ function renderSection(section: CvSectionView): string {
 /** What a visitor sees after quitting: what ssh prints, then a way back and the real command. */
 function renderClosed(): string {
   const goodbye = escapeHtml(GOODBYE_MESSAGES.quit?.trimEnd() ?? '');
-  return `<div class="closed" hidden><pre class="goodbye">${goodbye}</pre><pre>Connection to ${SSH_HOST} closed.</pre><pre><span class="prompt">visitor@web ~ %</span> <span class="cursor">▌</span></pre><div class="actions"><button class="reconnect" type="button">Reconnect</button><span class="command-copy"><code class="ssh-command">ssh ${SSH_HOST}</code><button class="copy" type="button">Copy</button></span></div></div>`;
+  return `<div class="closed" hidden><pre class="goodbye">${goodbye}</pre><pre>Connection to ${SSH_HOST} closed.</pre><pre><span class="prompt">visitor@web ~ %</span> <span class="cursor">▌</span></pre><p class="come-back">If you want to go back, click Reconnect below or try it yourself:</p><div class="actions"><button class="reconnect" type="button">Reconnect</button><span class="command-copy"><code class="ssh-command">ssh ${SSH_HOST}</code><button class="copy" type="button">Copy</button></span></div></div>`;
 }
