@@ -1,6 +1,7 @@
 // The TUI's behaviour on top of the server-rendered page: one section at a time, its keys,
 // clickable tabs, and the text re-rendered for this window's width.
 import { columnsFor } from './columns.js';
+import { playIntro } from './intro.js';
 import { actionForKey } from './key-map.js';
 import { swipeDelta } from './swipe.js';
 
@@ -21,9 +22,13 @@ const percent = /** @type {HTMLElement} */ (document.querySelector('.percent'));
 const live = /** @type {HTMLElement} */ (document.querySelector('.live'));
 const tabs = /** @type {HTMLAnchorElement[]} */ ([...document.querySelectorAll('.tab')]);
 const panels = /** @type {HTMLElement[]} */ ([...document.querySelectorAll('.panel')]);
+const intro = /** @type {HTMLElement} */ (document.querySelector('.intro'));
 const isCoarsePointer = matchMedia('(pointer: coarse)').matches;
+const sshHost = root.dataset.sshHost ?? '';
 
 let activeIndex = 0;
+/** @type {{ skip(): void } | undefined} */
+let runningIntro;
 
 /** @param {number} index */
 function showSection(index) {
@@ -85,6 +90,12 @@ function focusIsOnControl() {
 
 document.addEventListener('keydown', (event) => {
   if (event.defaultPrevented) return;
+  if (runningIntro) {
+    if (event.metaKey || event.altKey || event.ctrlKey) return;
+    event.preventDefault();
+    runningIntro.skip();
+    return;
+  }
   const focusOnControl = focusIsOnControl();
   if (focusOnControl && (event.key === ' ' || event.key === 'Enter')) return;
   const action = actionForKey(event, {
@@ -194,9 +205,22 @@ addEventListener('resize', () => {
 
 // Start
 
+/** Hands the screen to the TUI: after the intro, and after a reconnect. */
+function enterTui() {
+  runningIntro = undefined;
+  if (!isCoarsePointer) screen.focus({ preventScroll: true });
+}
+
+intro.addEventListener('pointerdown', () => runningIntro?.skip());
+
 hints.textContent = isCoarsePointer ? TOUCH_HINTS : KEY_HINTS;
 const linkedIndex = panels.findIndex((panel) => `#${panel.id}` === location.hash);
 showSection(linkedIndex >= 0 ? linkedIndex : 0);
 live.textContent = '';
-if (!isCoarsePointer) screen.focus({ preventScroll: true });
 void document.fonts.ready.then(renderForWidth);
+runningIntro = playIntro({
+  overlay: intro,
+  command: `ssh ${sshHost}`,
+  onDone: enterTui,
+  reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+});

@@ -38,6 +38,7 @@ ${view.sections.map(renderSection).join('\n')}
 </div>
 <footer class="footer"><span class="hints"></span><span class="percent"></span></footer>
 <div class="live visually-hidden" aria-live="polite"></div>
+<div class="intro" aria-hidden="true"><pre><span class="prompt">visitor@web ~ %</span> <span class="typed"></span><span class="cursor">▌</span></pre><pre class="intro-status"></pre></div>
 </div>
 </main>
 </body>

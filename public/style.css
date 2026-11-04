@@ -371,6 +371,10 @@ html:not(.js) .footer {
   display: none;
 }
 
+html:not(.js) .intro {
+  display: none;
+}
+
 /* With JavaScript: one section at a time, scrolled inside the window like the TUI. */
 
 html.js .window {
@@ -450,4 +454,53 @@ html.js .panel[hidden] {
   visibility: hidden;
   white-space: pre;
   pointer-events: none;
+}
+
+/* The intro: covers the screen while "ssh" types itself; the CV is already underneath. */
+
+.screen {
+  position: relative;
+}
+
+.intro {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 1lh 2ch;
+  background: var(--bg);
+  cursor: pointer;
+}
+
+.intro[hidden] {
+  display: none;
+}
+
+.prompt {
+  color: var(--ansi-2);
+}
+
+.cursor {
+  animation: blink 1s steps(1) infinite;
+}
+
+.intro-status {
+  color: var(--muted);
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cursor {
+    animation: none;
+  }
+}
+
+@media print {
+  .intro {
+    display: none !important;
+  }
 }

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import type { CvView } from './cv-view.types.js';
 import { renderPage } from './render-page.js';
@@ -67,4 +68,15 @@ test('boot.js runs before first paint: a classic, blocking script in the head', 
 
 test('app.js loads as a module, after the document is parsed', () => {
   assert.ok(renderPage(view).includes('<script type="module" src="/assets/app.js"></script>'));
+});
+
+test('the intro is an overlay hidden from screen readers, with the CV still underneath', () => {
+  const page = renderPage(view);
+  assert.match(page, /<div class="intro" aria-hidden="true">[\s\S]*<span class="typed"><\/span>/);
+  assert.ok(page.indexOf('class="intro"') > page.indexOf('id="viewport"'));
+});
+
+test('without JavaScript the intro overlay never shows', () => {
+  const stylesheet = readFileSync(new URL('../../public/style.css', import.meta.url), 'utf8');
+  assert.match(stylesheet, /html:not\(\.js\) \.intro\s*\{\s*display: none;/);
 });
