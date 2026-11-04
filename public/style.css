@@ -140,22 +140,6 @@ a {
   box-shadow: inset 0 0 0 2px var(--ansi-4);
 }
 
-@media (min-width: 700px) {
-  body {
-    padding: 4vh 16px;
-  }
-
-  .window {
-    max-width: 960px;
-    min-height: 0;
-    margin: 0 auto;
-    border: 1px solid #30363d;
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 16px 48px rgb(0 0 0 / 50%);
-  }
-}
-
 /* The TUI: same paddings as the Ink layout, in character cells. */
 
 .banner {
@@ -379,12 +363,6 @@ html:not(.js) .intro {
 
 html.js .window {
   height: 100dvh;
-}
-
-@media (min-width: 700px) {
-  html.js .window {
-    height: min(92vh, 900px);
-  }
 }
 
 html.js .viewport {
