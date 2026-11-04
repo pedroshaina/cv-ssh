@@ -4,3 +4,6 @@ dist/
 
 # Private specs and plans (separate private repo: internal-docs)
 .internal/
+
+# Brainstorming mockups (superpowers visual companion)
+.superpowers/
