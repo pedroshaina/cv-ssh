@@ -38,7 +38,7 @@ Scripts and the stylesheet are plain files in `public/`, served from `/assets/`.
 - Same keys as the TUI. Ctrl+C copies when text is selected and quits otherwise; Cmd and Alt
   shortcuts are left to the browser. On touch screens: tap a tab, swipe sideways between sections.
 - Quitting (`q`, Esc, or the red dot) prints the SSH goodbye, then "If you want to go back, click
-  Reconnect below or try it yourself:" with Reconnect and the real `ssh` command to copy.
+  Reconnect below or try it yourself in a real terminal:" with Reconnect and the real `ssh` command to copy.
 - `public/` is JavaScript with JSDoc types, checked by `tsconfig.public.json` (part of
   `pnpm typecheck`); its pure parts (`key-map.js`, `columns.js`, `swipe.js`) have tests next to them.
   There is no build step: the server reads the files as they are, so edits show on reload.

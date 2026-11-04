@@ -96,7 +96,7 @@ test('the session end screen is in the page, hidden, with the SSH goodbye and th
 test('after quitting, the end screen says how to come back', () => {
   assert.ok(
     renderPage(view).includes(
-      '<p class="come-back">If you want to go back, click Reconnect below or try it yourself:</p>',
+      '<p class="come-back">If you want to go back, click Reconnect below or try it yourself in a real terminal:</p>',
     ),
   );
 });
