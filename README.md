@@ -32,6 +32,17 @@ reads without JavaScript (link previews, crawlers, print). The page's script the
 the window's width from `GET /cv.json?cols=N` and adds the TUI's keys, tabs and touch gestures.
 Scripts and the stylesheet are plain files in `public/`, served from `/assets/`.
 
+- The page types `ssh cv.pedromartins.dev.br` and "connects" first; any key, click or tap skips
+  it, and so does `prefers-reduced-motion`.
+- Same keys as the TUI. Ctrl+C copies when text is selected and quits otherwise; Cmd and Alt
+  shortcuts are left to the browser. On touch screens: tap a tab, swipe sideways between sections.
+- Quitting (`q`, Esc, or the red dot) prints the SSH goodbye, then offers Reconnect and the real
+  `ssh` command to copy.
+- `public/` is JavaScript with JSDoc types, checked by `tsconfig.public.json` (part of
+  `pnpm typecheck`); its pure parts (`key-map.js`, `columns.js`, `swipe.js`) have tests next to them.
+  There is no build step: the server reads the files as they are, so edits show on reload.
+- Content edits show on the next page load, as they do for the next SSH session.
+
 ## Editing the CV
 
 Everything is in `content/`, read on every connection (no restart needed):
@@ -64,7 +75,7 @@ pnpm check        # typecheck, lint, format check and tests: run before opening 
 CI runs the same: `release.yaml` typechecks and tests, `check.yaml` lints and checks formatting.
 
 Keys: ←/→ (or h/l, Tab) sections, 1–9 jump, ↑/↓ (or j/k) scroll, space/b page, g/G top/bottom,
-q to quit.
+q to quit. The web page uses the same keys.
 
 ## Code layout and conventions
 
