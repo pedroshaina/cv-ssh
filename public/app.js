@@ -23,6 +23,12 @@ const live = /** @type {HTMLElement} */ (document.querySelector('.live'));
 const tabs = /** @type {HTMLAnchorElement[]} */ ([...document.querySelectorAll('.tab')]);
 const panels = /** @type {HTMLElement[]} */ ([...document.querySelectorAll('.panel')]);
 const intro = /** @type {HTMLElement} */ (document.querySelector('.intro'));
+const closed = /** @type {HTMLElement} */ (document.querySelector('.closed'));
+const goodbye = /** @type {HTMLElement} */ (document.querySelector('.goodbye'));
+const reconnectButton = /** @type {HTMLButtonElement} */ (document.querySelector('.reconnect'));
+const copyButton = /** @type {HTMLButtonElement} */ (document.querySelector('.copy'));
+const sshCommand = /** @type {HTMLElement} */ (document.querySelector('.ssh-command'));
+const closeButton = /** @type {HTMLButtonElement} */ (document.querySelector('.close'));
 const isCoarsePointer = matchMedia('(pointer: coarse)').matches;
 const sshHost = root.dataset.sshHost ?? '';
 
@@ -72,7 +78,7 @@ function runAction(action) {
       viewport.scrollTop = viewport.scrollHeight;
       break;
     case 'quit':
-      // The session end screen arrives with the quit task.
+      endSession();
       break;
   }
 }
@@ -90,6 +96,8 @@ function focusIsOnControl() {
 
 document.addEventListener('keydown', (event) => {
   if (event.defaultPrevented) return;
+  // After quitting, only the end screen's own buttons respond, with their usual keys.
+  if (!closed.hidden) return;
   if (runningIntro) {
     if (event.metaKey || event.altKey || event.ctrlKey) return;
     event.preventDefault();
@@ -212,6 +220,50 @@ function enterTui() {
 }
 
 intro.addEventListener('pointerdown', () => runningIntro?.skip());
+
+// Quit and reconnect: what ssh prints when the session ends, then a way back.
+
+const COPIED_MS = 2000;
+
+function endSession() {
+  if (!closed.hidden) return;
+  runningIntro?.skip();
+  screen.dataset.state = 'closed';
+  closed.hidden = false;
+  live.textContent = `${goodbye.textContent ?? ''} Connection to ${sshHost} closed.`;
+  reconnectButton.focus();
+}
+
+function reconnect() {
+  closed.hidden = true;
+  delete screen.dataset.state;
+  live.textContent = '';
+  runningIntro = playIntro({
+    overlay: intro,
+    command: `ssh ${sshHost}`,
+    onDone: () => {
+      enterTui();
+      showSection(activeIndex);
+    },
+    reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+    typing: false,
+  });
+}
+
+async function copyCommand() {
+  try {
+    await navigator.clipboard.writeText(`ssh ${sshHost}`);
+    copyButton.textContent = 'Copied';
+    window.setTimeout(() => (copyButton.textContent = 'Copy'), COPIED_MS);
+  } catch {
+    // No clipboard access (insecure origin, denied): select it so Ctrl/Cmd+C works.
+    getSelection()?.selectAllChildren(sshCommand);
+  }
+}
+
+closeButton.addEventListener('click', endSession);
+reconnectButton.addEventListener('click', reconnect);
+copyButton.addEventListener('click', () => void copyCommand());
 
 hints.textContent = isCoarsePointer ? TOUCH_HINTS : KEY_HINTS;
 const linkedIndex = panels.findIndex((panel) => `#${panel.id}` === location.hash);

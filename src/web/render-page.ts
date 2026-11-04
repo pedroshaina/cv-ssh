@@ -1,4 +1,5 @@
 import type { CvSectionView, CvView } from './cv-view.types.js';
+import { GOODBYE_MESSAGES } from '../cv-session/goodbye-messages.constants.js';
 import { escapeHtml } from './escape-html.js';
 import { SSH_HOST } from './web.constants.js';
 
@@ -38,6 +39,7 @@ ${view.sections.map(renderSection).join('\n')}
 </div>
 <footer class="footer"><span class="hints"></span><span class="percent"></span></footer>
 <div class="live visually-hidden" aria-live="polite"></div>
+${renderClosed()}
 <div class="intro" aria-hidden="true"><pre><span class="prompt">visitor@web ~ %</span> <span class="typed"></span><span class="cursor">▌</span></pre><pre class="intro-status"></pre></div>
 </div>
 </main>
@@ -58,4 +60,10 @@ function renderTab(section: CvSectionView, index: number): string {
 
 function renderSection(section: CvSectionView): string {
   return `<section class="panel" role="tabpanel" id="section-${section.id}" aria-labelledby="tab-${section.id}"><pre class="ansi">${section.html}</pre></section>`;
+}
+
+/** What a visitor sees after quitting: what ssh prints, then a way back and the real command. */
+function renderClosed(): string {
+  const goodbye = escapeHtml(GOODBYE_MESSAGES.quit?.trimEnd() ?? '');
+  return `<div class="closed" hidden><pre class="goodbye">${goodbye}</pre><pre>Connection to ${SSH_HOST} closed.</pre><pre><span class="prompt">visitor@web ~ %</span> <span class="cursor">▌</span></pre><div class="actions"><button class="reconnect" type="button">Reconnect</button><span class="command-copy"><code class="ssh-command">ssh ${SSH_HOST}</code><button class="copy" type="button">Copy</button></span></div></div>`;
 }

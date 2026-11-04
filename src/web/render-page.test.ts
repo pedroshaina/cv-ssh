@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
+import { GOODBYE_MESSAGES } from '../cv-session/goodbye-messages.constants.js';
 import type { CvView } from './cv-view.types.js';
+import { escapeHtml } from './escape-html.js';
 import { renderPage } from './render-page.js';
 
 const view: CvView = {
@@ -79,4 +81,14 @@ test('the intro is an overlay hidden from screen readers, with the CV still unde
 test('without JavaScript the intro overlay never shows', () => {
   const stylesheet = readFileSync(new URL('../../public/style.css', import.meta.url), 'utf8');
   assert.match(stylesheet, /html:not\(\.js\) \.intro\s*\{\s*display: none;/);
+});
+
+test('the session end screen is in the page, hidden, with the SSH goodbye and the real command', () => {
+  const page = renderPage(view);
+  assert.match(page, /<div class="closed" hidden>/);
+  assert.ok(page.includes(`<pre class="goodbye">${escapeHtml(GOODBYE_MESSAGES.quit?.trimEnd() ?? '')}</pre>`));
+  assert.ok(page.includes('Connection to cv.pedromartins.dev.br closed.'));
+  assert.match(page, /<button class="reconnect" type="button">Reconnect<\/button>/);
+  assert.match(page, /<code class="ssh-command">ssh cv.pedromartins.dev.br<\/code>/);
+  assert.match(page, /<button class="copy" type="button">Copy<\/button>/);
 });

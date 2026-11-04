@@ -504,3 +504,58 @@ html.js .panel[hidden] {
     display: none !important;
   }
 }
+
+/* After quitting: the TUI is gone, like the terminal after ssh exits. */
+
+.screen[data-state='closed'] > :not(.closed, .live, .intro) {
+  display: none;
+}
+
+.closed {
+  padding: 1lh 2ch;
+}
+
+.closed[hidden] {
+  display: none;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1lh 2ch;
+  margin-top: 1lh;
+}
+
+.command-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 1ch;
+}
+
+.ssh-command {
+  font: inherit;
+  color: var(--ansi-6);
+  background: var(--chrome);
+  padding: 0.25lh 1ch;
+  border-radius: 4px;
+}
+
+.reconnect,
+.copy {
+  font: inherit;
+  color: var(--bg);
+  background: var(--fg);
+  border: 0;
+  border-radius: 4px;
+  padding: 0.25lh 1.5ch;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.reconnect:focus-visible,
+.copy:focus-visible,
+.close:focus-visible {
+  outline: 2px solid var(--ansi-4);
+  outline-offset: 2px;
+}

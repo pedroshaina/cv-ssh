@@ -5,10 +5,11 @@ const CONNECTING_MS = 600;
 
 /**
  * Types the ssh command, "connects", then hands over to the TUI. skip() hands over at once.
- * @param {{ overlay: HTMLElement, command: string, onDone: () => void, reducedMotion: boolean }} options
+ * With typing off (a reconnect), the command shows at once and only the connect plays.
+ * @param {{ overlay: HTMLElement, command: string, onDone: () => void, reducedMotion: boolean, typing?: boolean }} options
  * @returns {{ skip(): void }}
  */
-export function playIntro({ overlay, command, onDone, reducedMotion }) {
+export function playIntro({ overlay, command, onDone, reducedMotion, typing = true }) {
   const typed = /** @type {HTMLElement} */ (overlay.querySelector('.typed'));
   const status = /** @type {HTMLElement} */ (overlay.querySelector('.intro-status'));
   let timer = 0;
@@ -49,7 +50,8 @@ export function playIntro({ overlay, command, onDone, reducedMotion }) {
       after(finish, CONNECTING_MS);
     }, ENTER_PAUSE_MS);
   };
-  after(() => typeFrom(1), 400);
+  if (typing) after(() => typeFrom(1), 400);
+  else typeFrom(command.length);
 
   return { skip: finish };
 }
