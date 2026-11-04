@@ -206,6 +206,14 @@ a {
   font-weight: 700;
 }
 
+@media (pointer: coarse) {
+  .tab {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
 .tab:focus-visible {
   outline: 2px solid var(--ansi-4);
   outline-offset: 1px;

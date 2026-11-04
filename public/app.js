@@ -2,12 +2,14 @@
 // clickable tabs, and the text re-rendered for this window's width.
 import { columnsFor } from './columns.js';
 import { actionForKey } from './key-map.js';
+import { swipeDelta } from './swipe.js';
 
 /** @typedef {import('./key-map.js').Action} Action */
 /** @typedef {{ id: string, title: string, html: string }} CvSectionView */
 /** @typedef {{ cols: number, name: string, bannerArt: string | null, taglineHtml: string, sections: CvSectionView[] }} CvView */
 
 const KEY_HINTS = '←/→ sections · ↑/↓ scroll · space/b page · q quit';
+const TOUCH_HINTS = 'tap tabs · swipe sections · drag to scroll';
 const RESIZE_DEBOUNCE_MS = 150;
 
 const root = document.documentElement;
@@ -104,6 +106,29 @@ tabs.forEach((tab, tabIndex) =>
 
 viewport.addEventListener('scroll', updatePercent, { passive: true });
 
+// Touch: swipe sideways between sections; vertical drags stay native scrolling.
+/** @type {{ x: number, y: number } | undefined} */
+let touchStart;
+viewport.addEventListener(
+  'touchstart',
+  (event) => {
+    const touch = event.touches[0];
+    touchStart = event.touches.length === 1 && touch ? { x: touch.clientX, y: touch.clientY } : undefined;
+  },
+  { passive: true },
+);
+viewport.addEventListener(
+  'touchend',
+  (event) => {
+    const touch = event.changedTouches[0];
+    if (!touchStart || !touch) return;
+    const delta = swipeDelta(touch.clientX - touchStart.x, touch.clientY - touchStart.y);
+    touchStart = undefined;
+    if (delta !== 0) showSection(activeIndex + delta);
+  },
+  { passive: true },
+);
+
 // Width: the server renders for a terminal as wide as the viewport, in this font's character cells.
 // The panels' side padding is 2ch each, the same 4 columns the server takes off for the text.
 
@@ -169,7 +194,7 @@ addEventListener('resize', () => {
 
 // Start
 
-hints.textContent = KEY_HINTS;
+hints.textContent = isCoarsePointer ? TOUCH_HINTS : KEY_HINTS;
 const linkedIndex = panels.findIndex((panel) => `#${panel.id}` === location.hash);
 showSection(linkedIndex >= 0 ? linkedIndex : 0);
 live.textContent = '';
