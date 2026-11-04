@@ -64,3 +64,7 @@ test('boot.js runs before first paint: a classic, blocking script in the head', 
   const page = renderPage(view);
   assert.match(page, /<head>[\s\S]*<script src="\/assets\/boot.js"><\/script>[\s\S]*<\/head>/);
 });
+
+test('app.js loads as a module, after the document is parsed', () => {
+  assert.ok(renderPage(view).includes('<script type="module" src="/assets/app.js"></script>'));
+});

@@ -214,6 +214,7 @@ a {
 .viewport {
   flex: 1;
   min-height: 0;
+  position: relative;
 }
 
 .panel {
@@ -364,14 +365,14 @@ html:not(.js) .footer {
 
 /* With JavaScript: one section at a time, scrolled inside the window like the TUI. */
 
+html.js .window {
+  height: 100dvh;
+}
+
 @media (min-width: 700px) {
   html.js .window {
     height: min(92vh, 900px);
   }
-}
-
-html.js .window {
-  height: 100dvh;
 }
 
 html.js .viewport {
@@ -431,4 +432,14 @@ html.js .panel[hidden] {
   .dim {
     opacity: 1;
   }
+}
+
+/* Measures one character cell for the width calculation in app.js. */
+.probe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  white-space: pre;
+  pointer-events: none;
 }

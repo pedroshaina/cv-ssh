@@ -25,6 +25,7 @@ export function renderPage(view: CvView): string {
 <meta name="theme-color" content="#0d1117">
 <script src="/assets/boot.js"></script>
 <link rel="stylesheet" href="/assets/style.css">
+<script type="module" src="/assets/app.js"></script>
 </head>
 <body>
 <main class="window">
