@@ -8,7 +8,8 @@ import { TabBar } from './components/TabBar.js';
 import { TooSmallNotice } from './components/TooSmallNotice.js';
 import { useKeyboardNavigation } from './hooks/useKeyboardNavigation.js';
 import { useScroll } from './hooks/useScroll.js';
-import { MAX_TEXT_WIDTH, MIN_COLUMNS, MIN_ROWS, MIN_TEXT_WIDTH, PADDING_X } from './layout.constants.js';
+import { MIN_COLUMNS, MIN_ROWS, PADDING_X } from './layout.constants.js';
+import { textWidthFor } from './rendering/text-width.js';
 
 export interface AppProps {
   content: CvContent;
@@ -22,7 +23,7 @@ export function App({ content, onSectionView }: AppProps) {
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const scroll = useScroll();
 
-  const textWidth = Math.max(MIN_TEXT_WIDTH, Math.min(columns - 2 * PADDING_X, MAX_TEXT_WIDTH));
+  const textWidth = textWidthFor(columns);
   const activeSection = sections[activeSectionIndex];
   const renderedSection = useMemo(
     () => (activeSection ? renderMarkdown(activeSection.markdown, textWidth) : ''),

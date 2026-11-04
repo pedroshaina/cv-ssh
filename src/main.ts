@@ -24,7 +24,7 @@ const sshAddress = await sshServer
   .catch((error: unknown) => logAndExit(error, 'SSH port unavailable'));
 logger.info({ host: sshAddress.address, port: sshAddress.port }, 'cv-ssh listening');
 
-const httpServer = createHttpServer(sshServer.isReady);
+const httpServer = createHttpServer({ isReady: sshServer.isReady, contentDir: config.contentDir, logger });
 const httpAddress = await httpServer
   .listen(config.httpPort, config.listenHost)
   .catch((error: unknown) => logAndExit(error, 'HTTP port unavailable'));
