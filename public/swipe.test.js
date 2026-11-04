@@ -15,3 +15,8 @@ test('a diagonal or vertical drag is a scroll, not a swipe', () => {
   assert.equal(swipeDelta(-80, 70), 0);
   assert.equal(swipeDelta(0, -300), 0);
 });
+
+test('dragging while text is selected (adjusting a long-press selection) is not a swipe', () => {
+  assert.equal(swipeDelta(-80, 0, true), 0);
+  assert.equal(swipeDelta(-80, 0, false), 1);
+});

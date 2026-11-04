@@ -94,6 +94,11 @@ function focusIsOnControl() {
   return focused instanceof HTMLElement && focused.matches('button, a') && !focused.matches('.tab');
 }
 
+function focusIsOnTerminal() {
+  const focused = document.activeElement;
+  return focused === screen || (focused instanceof HTMLElement && focused.matches('.tab'));
+}
+
 document.addEventListener('keydown', (event) => {
   if (event.defaultPrevented) return;
   // After quitting, only the end screen's own buttons respond, with their usual keys.
@@ -109,7 +114,8 @@ document.addEventListener('keydown', (event) => {
   const action = actionForKey(event, {
     sectionCount: panels.length,
     hasSelection: (getSelection()?.toString() ?? '') !== '',
-    focusOnControl,
+    // Tab is the TUI's only while the terminal (or one of its tabs) has focus; elsewhere it moves focus.
+    focusOnControl: !focusIsOnTerminal(),
   });
   if (!action) return;
   event.preventDefault();
@@ -141,7 +147,8 @@ viewport.addEventListener(
   (event) => {
     const touch = event.changedTouches[0];
     if (!touchStart || !touch) return;
-    const delta = swipeDelta(touch.clientX - touchStart.x, touch.clientY - touchStart.y);
+    const hasSelection = (getSelection()?.toString() ?? '') !== '';
+    const delta = swipeDelta(touch.clientX - touchStart.x, touch.clientY - touchStart.y, hasSelection);
     touchStart = undefined;
     if (delta !== 0) showSection(activeIndex + delta);
   },

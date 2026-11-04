@@ -35,12 +35,16 @@ export function createHttpServer({ isReady, contentDir, logger }: HttpServerOpti
     }
   };
 
-  const server = createServer((request, response) => {
+  const handleRequest = (request: IncomingMessage, response: ServerResponse): void => {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       response.writeHead(405).end();
       return;
     }
-    const url = new URL(request.url ?? '/', 'http://localhost');
+    const url = parseRequestPath(request.url);
+    if (!url) {
+      send(request, response, 400, { 'content-type': 'text/plain' }, 'bad request\n');
+      return;
+    }
 
     if (url.pathname === '/health') {
       send(request, response, 200, { 'content-type': 'text/plain' }, 'ok\n');
@@ -67,12 +71,30 @@ export function createHttpServer({ isReady, contentDir, logger }: HttpServerOpti
     } else {
       response.writeHead(404).end();
     }
+  };
+
+  // This process also serves every SSH session: a throw here must not take them down.
+  const server = createServer((request, response) => {
+    try {
+      handleRequest(request, response);
+    } catch (error: unknown) {
+      logger.error({ err: error }, 'http request failed');
+      if (response.headersSent) response.destroy();
+      else send(request, response, 500, { 'content-type': 'text/plain' }, 'internal error\n');
+    }
   });
 
   return {
     listen: (port, host) => listen(server, port, host),
     close: () => new Promise((resolve) => server.close(() => resolve())),
   };
+}
+
+/** Only origin-form targets ("/path?query"); Node also accepts absolute URLs, which may not parse. */
+function parseRequestPath(target: string | undefined): URL | undefined {
+  if (!target?.startsWith('/')) return undefined;
+  const absolute = `http://localhost${target}`;
+  return URL.canParse(absolute) ? new URL(absolute) : undefined;
 }
 
 async function serveAsset(request: IncomingMessage, response: ServerResponse, pathname: string): Promise<void> {

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { connect } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, test } from 'node:test';
@@ -98,4 +99,24 @@ test('unreadable content is a 500, and the probes keep answering', async () => {
     chmodSync(brokenDir, 0o700);
     await brokenServer.close();
   }
+});
+
+function rawRequest(requestLine: string): Promise<string> {
+  const { port } = new URL(baseUrl);
+  return new Promise((resolve, reject) => {
+    const socket = connect(Number(port), '127.0.0.1', () =>
+      socket.write(`${requestLine}\r\nHost: x\r\nConnection: close\r\n\r\n`),
+    );
+    let received = '';
+    socket.on('data', (chunk) => (received += String(chunk)));
+    socket.on('end', () => resolve(received));
+    socket.on('error', reject);
+  });
+}
+
+test('a request target that is not a valid URL is a 400, not a crash', async () => {
+  for (const target of ['http://[', 'http://a:b/', 'http://%zz/']) {
+    assert.match(await rawRequest(`GET ${target} HTTP/1.1`), /^HTTP\/1\.1 400/, target);
+  }
+  assert.equal((await fetch(`${baseUrl}/health`)).status, 200);
 });
