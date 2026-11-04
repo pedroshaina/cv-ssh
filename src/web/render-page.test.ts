@@ -1,0 +1,61 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import type { CvView } from './cv-view.types.js';
+import { renderPage } from './render-page.js';
+
+const view: CvView = {
+  cols: 80,
+  name: 'Ada Lovelace',
+  bannerArt: ' _  \n|_| ',
+  taglineHtml: '<span class="b">Analyst</span> · London',
+  sections: [
+    { id: 'about', title: 'About', html: 'First <span class="b">programmer</span>.' },
+    { id: 'contact', title: 'Contact', html: 'ada@example.com' },
+  ],
+};
+
+test('every section is in the page, with its title and rendered body', () => {
+  const page = renderPage(view);
+  for (const section of view.sections) {
+    assert.ok(page.includes(`>${section.title}<`), section.title);
+    assert.ok(page.includes(section.html), section.id);
+    assert.match(page, new RegExp(`<section[^>]*id="section-${section.id}"(?![^>]*hidden)[^>]*>`));
+  }
+});
+
+test('the title and preview tags come from the name and the tagline text', () => {
+  const page = renderPage(view);
+  assert.ok(page.includes('<title>Ada Lovelace — ssh cv.pedromartins.dev.br</title>'));
+  assert.ok(page.includes('<meta property="og:title" content="Ada Lovelace — ssh cv.pedromartins.dev.br">'));
+  assert.ok(page.includes('<meta name="description" content="Analyst · London">'));
+  assert.ok(page.includes('<meta property="og:description" content="Analyst · London">'));
+});
+
+test('names and titles are escaped wherever they appear', () => {
+  const page = renderPage({
+    ...view,
+    name: '<x>',
+    sections: [{ id: 'a-b-c', title: 'A <b> & c', html: 'x' }],
+  });
+  assert.ok(!page.includes('<x>'));
+  assert.ok(!page.includes('A <b> & c'));
+  assert.ok(page.includes('&lt;x&gt; — ssh'));
+  assert.ok(page.includes('A &lt;b&gt; &amp; c'));
+});
+
+test('the banner art is escaped and hidden from screen readers, which get the plain name', () => {
+  const page = renderPage({ ...view, bannerArt: '<|>' });
+  assert.ok(page.includes('<pre class="banner-art" aria-hidden="true">&lt;|&gt;</pre>'));
+  assert.ok(page.includes('<h1 class="name">Ada Lovelace</h1>'));
+});
+
+test('no inline styles or scripts, so the CSP can stay strict', () => {
+  const page = renderPage(view);
+  assert.ok(!page.includes('style="'));
+  assert.doesNotMatch(page, /<script(?![^>]*\ssrc=)[^>]*>/);
+});
+
+test('the page carries the width it was rendered at and the ssh host for the script', () => {
+  const page = renderPage(view);
+  assert.match(page, /<html lang="en" data-cols="80" data-ssh-host="cv.pedromartins.dev.br"/);
+});

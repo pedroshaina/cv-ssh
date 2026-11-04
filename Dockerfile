@@ -29,6 +29,7 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build --chown=nonroot:nonroot /data /data
 COPY content ./content
+COPY public ./public
 EXPOSE 2222 8080
 # force-color-env must run before chalk loads; see that file.
 CMD ["--import", "./dist/terminal/force-color-env.js", "dist/main.js"]

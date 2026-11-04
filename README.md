@@ -24,6 +24,14 @@ There is no shell on the other end. The SSH server _is_ the app:
   forwarding attempt is logged at `warn` as `forwarding refused`. A visitor's client never sends
   one, so every such line means someone is probing.
 
+## Web page
+
+The HTTP port (`HTTP_PORT`, 8080) also serves the CV as a web page that acts out the SSH session:
+`GET /` is the whole CV, rendered by the same Markdown pipeline as the TUI at 80 columns, so it
+reads without JavaScript (link previews, crawlers, print). The page's script then re-renders it for
+the window's width from `GET /cv.json?cols=N` and adds the TUI's keys, tabs and touch gestures.
+Scripts and the stylesheet are plain files in `public/`, served from `/assets/`.
+
 ## Editing the CV
 
 Everything is in `content/`, read on every connection (no restart needed):
@@ -76,6 +84,9 @@ src/
   content/           reads the Markdown in CONTENT_DIR
   ui/                the Ink app, the only place with JSX: components/, hooks/, and
                      rendering/ (Markdown and the banner to ANSI)
+  web/               the web page: the CV as HTML (ANSI to classed spans), the page template
+                     and the /assets resolver
+public/              the page's browser scripts and stylesheet, served as they are
 ```
 
 Dependencies point one way: `ssh` → `cv-session` → `terminal`, `content`, `ui`.

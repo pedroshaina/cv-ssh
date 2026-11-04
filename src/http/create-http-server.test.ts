@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, test } from 'node:test';
@@ -62,4 +62,40 @@ test('HEAD gets the headers without a body', async () => {
 test('other methods are 405 and unknown paths 404', async () => {
   assert.equal((await fetch(`${baseUrl}/cv.json`, { method: 'POST' })).status, 405);
   assert.equal((await fetch(`${baseUrl}/nope`)).status, 404);
+});
+
+const PAGE_CSP =
+  "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+
+test('/ is the CV page, with every section and strict headers', async () => {
+  const response = await fetch(`${baseUrl}/`);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'text/html; charset=utf-8');
+  assert.equal(response.headers.get('content-security-policy'), PAGE_CSP);
+  assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+  const page = await response.text();
+  for (const title of ['About', 'Contact']) assert.ok(page.includes(`>${title}<`), title);
+});
+
+test('/assets serves files from public/ and 404s the rest', async () => {
+  const stylesheet = await fetch(`${baseUrl}/assets/style.css`);
+  assert.equal(stylesheet.status, 200);
+  assert.equal(stylesheet.headers.get('content-type'), 'text/css; charset=utf-8');
+  assert.equal((await fetch(`${baseUrl}/assets/missing.js`)).status, 404);
+  assert.equal((await fetch(`${baseUrl}/assets/%2e%2e/package.json`)).status, 404);
+});
+
+test('unreadable content is a 500, and the probes keep answering', async () => {
+  const brokenDir = mkdtempSync(join(tmpdir(), 'cv-ssh-broken-'));
+  chmodSync(brokenDir, 0o000);
+  const brokenServer = createHttpServer({ isReady: () => true, contentDir: brokenDir, logger: createLogger('silent') });
+  const { port } = await brokenServer.listen(0, '127.0.0.1');
+  try {
+    assert.equal((await fetch(`http://127.0.0.1:${port}/`)).status, 500);
+    assert.equal((await fetch(`http://127.0.0.1:${port}/cv.json`)).status, 500);
+    assert.equal((await fetch(`http://127.0.0.1:${port}/health`)).status, 200);
+  } finally {
+    chmodSync(brokenDir, 0o700);
+    await brokenServer.close();
+  }
 });
