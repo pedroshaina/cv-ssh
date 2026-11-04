@@ -23,6 +23,7 @@ export function renderPage(view: CvView): string {
 <meta property="og:title" content="${title}">
 <meta property="og:description" content="${description}">
 <meta name="theme-color" content="#0d1117">
+<script src="/assets/boot.js"></script>
 <link rel="stylesheet" href="/assets/style.css">
 </head>
 <body>

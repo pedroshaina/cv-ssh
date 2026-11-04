@@ -11,11 +11,11 @@
     "dev": "tsx watch --import ./src/terminal/force-color-env.ts src/main.ts | pino-pretty",
     "build": "tsc -p tsconfig.build.json",
     "start": "node --import ./dist/terminal/force-color-env.js dist/main.js",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.public.json",
     "lint": "oxlint --type-aware --deny-warnings && node scripts/check-tsx-location.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "node --import tsx --import ./src/terminal/force-color-env.ts --test --test-force-exit \"src/**/*.test.ts\"",
+    "test": "node --import tsx --import ./src/terminal/force-color-env.ts --test --test-force-exit \"src/**/*.test.ts\" \"public/**/*.test.js\"",
     "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test"
   },
   "packageManager": "pnpm@12.15.0",

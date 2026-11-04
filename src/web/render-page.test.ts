@@ -59,3 +59,8 @@ test('the page carries the width it was rendered at and the ssh host for the scr
   const page = renderPage(view);
   assert.match(page, /<html lang="en" data-cols="80" data-ssh-host="cv.pedromartins.dev.br"/);
 });
+
+test('boot.js runs before first paint: a classic, blocking script in the head', () => {
+  const page = renderPage(view);
+  assert.match(page, /<head>[\s\S]*<script src="\/assets\/boot.js"><\/script>[\s\S]*<\/head>/);
+});
