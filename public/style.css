@@ -160,11 +160,16 @@ html.js .window {
   margin-right: 52px;
 }
 
+/* A terminal app pads its character grid away from the window edge; the TUI draws the tab
+   bar's border in column 0 and relies on that padding. */
 .screen {
+  --gutter-x: 1ch;
+  --gutter-y: 0.5lh;
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  padding: var(--gutter-y) var(--gutter-x);
   overflow-x: hidden;
   outline: none;
 }
@@ -202,7 +207,7 @@ html.js .window {
 
 /* Ink's round border is a row of box-drawing characters above and below the tabs and a column on
    each side, each line drawn through the middle of its cell, plus paddingX={1}. So: three rows
-   tall, the line half a cell in from the edge, the tabs a full row and two columns in. */
+   tall, the line half a cell in from column 0, the tabs a full row and two columns in. */
 .tabbar {
   display: flex;
   flex-wrap: wrap;
@@ -498,7 +503,8 @@ html.js .panel[hidden] {
   position: absolute;
   inset: 0;
   z-index: 1;
-  padding: 1lh 2ch;
+  /* Covers the gutter too, so the prompt lines up with the TUI's text underneath. */
+  padding: calc(1lh + var(--gutter-y)) calc(2ch + var(--gutter-x));
   background: var(--bg);
   cursor: pointer;
 }
