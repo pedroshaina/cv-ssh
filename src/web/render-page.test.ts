@@ -106,3 +106,10 @@ test('the favicon is the terminal-CV icon, with a PNG for home screens', () => {
   assert.ok(page.includes('<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">'));
   assert.ok(page.includes('<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">'));
 });
+
+test('printing drops the figlet art for the plain bold name, which fits any page width', () => {
+  const stylesheet = readFileSync(new URL('../../public/style.css', import.meta.url), 'utf8');
+  const printRules = stylesheet.slice(stylesheet.indexOf('@media print'));
+  assert.match(printRules, /\.banner-art\s*\{\s*display: none !important;/);
+  assert.match(printRules, /\.banner-art \+ \.name\s*\{[^}]*position: static;[^}]*clip-path: none;/);
+});

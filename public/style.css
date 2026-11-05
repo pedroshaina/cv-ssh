@@ -445,6 +445,24 @@ html.js .panel[hidden] {
     color: #000;
   }
 
+  .screen {
+    box-shadow: none !important;
+  }
+
+  /* Wide figlet art gets cut at the page edge: print the plain bold name instead. */
+  .banner-art {
+    display: none !important;
+  }
+
+  .banner-art + .name {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+  }
+
   [class*='fg-'],
   [class*='bg-'],
   .inv {
