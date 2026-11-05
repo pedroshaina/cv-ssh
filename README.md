@@ -4,8 +4,12 @@ My CV as a terminal app served over SSH, in the spirit of `ssh terminal.shop`. V
 with any SSH client and browse it as a TUI: no account, no key, no password.
 
 ```
-ssh -p 2222 localhost   # when running locally
+ssh cv.pedromartins.dev.br   # the live CV
+ssh -p 2222 localhost        # when running locally
 ```
+
+No terminal at hand? The same CV runs in the browser at
+[cv-ssh.pedromartins.dev.br](https://cv-ssh.pedromartins.dev.br).
 
 ## How it works
 
