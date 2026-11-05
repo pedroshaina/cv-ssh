@@ -1,0 +1,577 @@
+/* The CV page: a terminal window around the TUI's own rendering. */
+
+:root {
+  color-scheme: dark;
+  --bg: #0d1117;
+  --fg: #c9d1d9;
+  --muted: #8b949e;
+  --border: #484f58;
+  --chrome: #161b22;
+  --desk: #010409;
+
+  /* The 16 terminal colours (GitHub dark). 0 and 8 only ever show as backgrounds here. */
+  --ansi-0: #484f58;
+  --ansi-1: #ff7b72;
+  --ansi-2: #3fb950;
+  --ansi-3: #d29922;
+  --ansi-4: #58a6ff;
+  --ansi-5: #bc8cff;
+  --ansi-6: #39c5cf;
+  --ansi-7: #b1bac4;
+  --ansi-8: #6e7681;
+  --ansi-9: #ffa198;
+  --ansi-10: #56d364;
+  --ansi-11: #e3b341;
+  --ansi-12: #79c0ff;
+  --ansi-13: #d2a8ff;
+  --ansi-14: #56d4dd;
+  --ansi-15: #f0f6fc;
+
+  --font: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  --font-size: 15px;
+  --line: 1.35;
+}
+
+@media (max-width: 520px) {
+  :root {
+    --font-size: 13px;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--desk);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: var(--font-size);
+  line-height: var(--line);
+}
+
+pre {
+  margin: 0;
+  font: inherit;
+  white-space: pre;
+}
+
+a {
+  color: inherit;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Window */
+
+.window {
+  background: var(--bg);
+  min-height: 100vh;
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The opening (boot.js, app.js): a window on the desk first, then maximized to the viewport. */
+
+html.js .window {
+  width: 100%;
+  min-height: 0;
+  margin: 0 auto;
+  transition:
+    width 0.4s ease,
+    height 0.4s ease,
+    margin-top 0.4s ease,
+    border-radius 0.4s ease,
+    box-shadow 0.4s ease;
+}
+
+@media (min-width: 700px) {
+  html.js.windowed .window {
+    width: min(960px, calc(100% - 32px));
+    height: min(92vh, 900px);
+    margin-top: 4vh;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px #30363d,
+      0 16px 48px rgb(0 0 0 / 50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.js .window {
+    transition: none;
+  }
+}
+
+.titlebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--chrome);
+  color: var(--muted);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 0;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.close {
+  background: #ff5f56;
+  cursor: pointer;
+}
+
+.minimize {
+  background: #ffbd2e;
+}
+
+.zoom {
+  background: #27c93f;
+}
+
+.window-title {
+  flex: 1;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Keeps the title centred despite the dots on the left. */
+  margin-right: 52px;
+}
+
+.screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-x: hidden;
+  outline: none;
+}
+
+.screen:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--ansi-4);
+}
+
+/* The TUI: same paddings as the Ink layout, in character cells. */
+
+.banner {
+  padding: 1lh 2ch 0;
+  flex-shrink: 0;
+}
+
+.banner-art,
+.name {
+  color: var(--ansi-6);
+}
+
+.name {
+  margin: 0;
+  font: inherit;
+  font-weight: 700;
+}
+
+.banner-art + .name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.tabbar {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 1ch;
+  margin: 0;
+  padding: 0 1ch;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.tab {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 0 1ch;
+}
+
+.tab[aria-selected='true'] {
+  background: var(--fg);
+  color: var(--bg);
+  font-weight: 700;
+}
+
+@media (pointer: coarse) {
+  .tab {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--ansi-4);
+  outline-offset: 1px;
+}
+
+.viewport {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.panel {
+  padding: 1lh 2ch;
+}
+
+/* Rendered for a known width, so this only wraps before the page re-renders for its own width
+   (or never, with JavaScript off on a narrow screen): better than text off the edge. */
+.ansi {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 2ch;
+  padding: 0 1ch;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+/* Terminal attributes from ansiToHtml. */
+
+.b {
+  font-weight: 700;
+}
+
+.dim {
+  opacity: 0.7;
+}
+
+.i {
+  font-style: italic;
+}
+
+.u {
+  text-decoration: underline;
+}
+
+.inv {
+  color: var(--bg);
+  background: var(--fg);
+}
+
+.fg-0 {
+  color: var(--ansi-0);
+}
+.fg-1 {
+  color: var(--ansi-1);
+}
+.fg-2 {
+  color: var(--ansi-2);
+}
+.fg-3 {
+  color: var(--ansi-3);
+}
+.fg-4 {
+  color: var(--ansi-4);
+}
+.fg-5 {
+  color: var(--ansi-5);
+}
+.fg-6 {
+  color: var(--ansi-6);
+}
+.fg-7 {
+  color: var(--ansi-7);
+}
+.fg-8 {
+  color: var(--ansi-8);
+}
+.fg-9 {
+  color: var(--ansi-9);
+}
+.fg-10 {
+  color: var(--ansi-10);
+}
+.fg-11 {
+  color: var(--ansi-11);
+}
+.fg-12 {
+  color: var(--ansi-12);
+}
+.fg-13 {
+  color: var(--ansi-13);
+}
+.fg-14 {
+  color: var(--ansi-14);
+}
+.fg-15 {
+  color: var(--ansi-15);
+}
+.bg-0 {
+  background: var(--ansi-0);
+}
+.bg-1 {
+  background: var(--ansi-1);
+}
+.bg-2 {
+  background: var(--ansi-2);
+}
+.bg-3 {
+  background: var(--ansi-3);
+}
+.bg-4 {
+  background: var(--ansi-4);
+}
+.bg-5 {
+  background: var(--ansi-5);
+}
+.bg-6 {
+  background: var(--ansi-6);
+}
+.bg-7 {
+  background: var(--ansi-7);
+}
+.bg-8 {
+  background: var(--ansi-8);
+}
+.bg-9 {
+  background: var(--ansi-9);
+}
+.bg-10 {
+  background: var(--ansi-10);
+}
+.bg-11 {
+  background: var(--ansi-11);
+}
+.bg-12 {
+  background: var(--ansi-12);
+}
+.bg-13 {
+  background: var(--ansi-13);
+}
+.bg-14 {
+  background: var(--ansi-14);
+}
+.bg-15 {
+  background: var(--ansi-15);
+}
+
+/* Without JavaScript: one long page, every section in order. */
+
+html:not(.js) .footer {
+  display: none;
+}
+
+html:not(.js) .intro {
+  display: none;
+}
+
+/* With JavaScript: one section at a time, scrolled inside the window like the TUI. */
+
+html.js .window {
+  height: 100dvh;
+}
+
+html.js .viewport {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+html.js .panel[hidden] {
+  display: none;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff;
+    color: #000;
+    padding: 0;
+  }
+
+  .window {
+    background: #fff;
+    border: 0;
+    box-shadow: none;
+    height: auto !important;
+    max-width: none;
+  }
+
+  .titlebar,
+  .tabbar,
+  .footer,
+  .live {
+    display: none !important;
+  }
+
+  .viewport {
+    overflow: visible !important;
+  }
+
+  .panel,
+  .panel[hidden] {
+    display: block !important;
+    break-inside: auto;
+  }
+
+  .banner-art,
+  .name {
+    color: #000;
+  }
+
+  [class*='fg-'],
+  [class*='bg-'],
+  .inv {
+    color: inherit;
+    background: none;
+  }
+
+  .dim {
+    opacity: 1;
+  }
+}
+
+/* Measures one character cell for the width calculation in app.js. */
+.probe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  white-space: pre;
+  pointer-events: none;
+}
+
+/* The intro: covers the screen while "ssh" types itself; the CV is already underneath. */
+
+.screen {
+  position: relative;
+}
+
+.intro {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 1lh 2ch;
+  background: var(--bg);
+  cursor: pointer;
+}
+
+.intro[hidden] {
+  display: none;
+}
+
+.prompt {
+  color: var(--ansi-2);
+}
+
+.cursor {
+  animation: blink 1s steps(1) infinite;
+}
+
+.intro-status {
+  color: var(--muted);
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cursor {
+    animation: none;
+  }
+}
+
+@media print {
+  .intro {
+    display: none !important;
+  }
+}
+
+/* After quitting: the TUI is gone, like the terminal after ssh exits. */
+
+.screen[data-state='closed'] > :not(.closed, .live, .intro) {
+  display: none;
+}
+
+.closed {
+  padding: 1lh 2ch;
+}
+
+.come-back {
+  margin: 1lh 0 0;
+  color: var(--muted);
+}
+
+.closed[hidden] {
+  display: none;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1lh 2ch;
+  margin-top: 1lh;
+}
+
+.command-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 1ch;
+}
+
+.ssh-command {
+  font: inherit;
+  color: var(--ansi-6);
+  background: var(--chrome);
+  padding: 0.25lh 1ch;
+  border-radius: 4px;
+}
+
+.reconnect,
+.copy {
+  font: inherit;
+  color: var(--bg);
+  background: var(--fg);
+  border: 0;
+  border-radius: 4px;
+  padding: 0.25lh 1.5ch;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.reconnect:focus-visible,
+.copy:focus-visible,
+.close:focus-visible {
+  outline: 2px solid var(--ansi-4);
+  outline-offset: 2px;
+}

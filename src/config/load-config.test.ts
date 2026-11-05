@@ -10,6 +10,7 @@ test('empty strings fall back to defaults, for every variable', () => {
   const variableNames = [
     'HOST',
     'PORT',
+    'HTTP_PORT',
     'HEALTH_PORT',
     'HOST_KEY_PATH',
     'CONTENT_DIR',
@@ -59,4 +60,27 @@ test('timeouts and the session limit must be above 0, which would lock everyone 
     assert.throws(() => loadConfig({ [variableName]: '0' }), failsOn(variableName));
   }
   assert.equal(loadConfig({ MAX_SESSIONS_PER_IP: '0' }).maxSessionsPerIp, 0);
+});
+
+test('HTTP_PORT sets the HTTP port', () => {
+  assert.equal(loadConfig({ HTTP_PORT: '9000' }).httpPort, 9000);
+  assert.throws(() => loadConfig({ HTTP_PORT: 'abc' }), failsOn('HTTP_PORT'));
+});
+
+test('the HTTP port defaults to 8080', () => {
+  const config = loadConfig({});
+  assert.equal(config.httpPort, 8080);
+  assert.equal(config.usesDeprecatedHealthPort, false);
+});
+
+test('HEALTH_PORT still works as a deprecated fallback', () => {
+  const config = loadConfig({ HEALTH_PORT: '9001' });
+  assert.equal(config.httpPort, 9001);
+  assert.equal(config.usesDeprecatedHealthPort, true);
+});
+
+test('HTTP_PORT wins over HEALTH_PORT', () => {
+  const config = loadConfig({ HTTP_PORT: '9000', HEALTH_PORT: '9001' });
+  assert.equal(config.httpPort, 9000);
+  assert.equal(config.usesDeprecatedHealthPort, false);
 });

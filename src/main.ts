@@ -13,6 +13,7 @@ process.on('unhandledRejection', (reason) => logAndExit(reason, 'unhandled rejec
 
 const config = loadConfigOrExit();
 logger = createLogger(config.logLevel);
+if (config.usesDeprecatedHealthPort) logger.warn('HEALTH_PORT is deprecated, use HTTP_PORT');
 
 // Fail early on unparseable content
 loadContentOrExit(config.contentDir);
@@ -23,11 +24,11 @@ const sshAddress = await sshServer
   .catch((error: unknown) => logAndExit(error, 'SSH port unavailable'));
 logger.info({ host: sshAddress.address, port: sshAddress.port }, 'cv-ssh listening');
 
-const httpServer = createHttpServer(sshServer.isReady);
+const httpServer = createHttpServer({ isReady: sshServer.isReady, contentDir: config.contentDir, logger });
 const httpAddress = await httpServer
   .listen(config.httpPort, config.listenHost)
-  .catch((error: unknown) => logAndExit(error, 'health port unavailable'));
-logger.info({ port: httpAddress.port }, 'health endpoints listening');
+  .catch((error: unknown) => logAndExit(error, 'HTTP port unavailable'));
+logger.info({ port: httpAddress.port }, 'http server listening');
 
 // `on`, not `once`: signal-exit (via Ink) kills us when no listeners remain.
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {

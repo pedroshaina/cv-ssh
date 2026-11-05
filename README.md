@@ -24,6 +24,26 @@ There is no shell on the other end. The SSH server _is_ the app:
   forwarding attempt is logged at `warn` as `forwarding refused`. A visitor's client never sends
   one, so every such line means someone is probing.
 
+## Web page
+
+The HTTP port (`HTTP_PORT`, 8080) also serves the CV as a web page that acts out the SSH session:
+`GET /` is the whole CV, rendered by the same Markdown pipeline as the TUI at 80 columns, so it
+reads without JavaScript (link previews, crawlers, print). The page's script then re-renders it for
+the window's width from `GET /cv.json?cols=N` and adds the TUI's keys, tabs and touch gestures.
+Scripts and the stylesheet are plain files in `public/`, served from `/assets/`.
+
+- On wide screens the terminal opens as a window, maximizes to the whole viewport after a second,
+  then types `ssh cv.pedromartins.dev.br` and "connects" (phones go straight to the typing). Any
+  key, click or tap skips it, and so does `prefers-reduced-motion`.
+- Same keys as the TUI. Ctrl+C copies when text is selected and quits otherwise; Cmd and Alt
+  shortcuts are left to the browser. On touch screens: tap a tab, swipe sideways between sections.
+- Quitting (`q`, Esc, or the red dot) prints the SSH goodbye, then "If you want to go back, click
+  Reconnect below or try it yourself in a real terminal:" with Reconnect and the real `ssh` command to copy.
+- `public/` is JavaScript with JSDoc types, checked by `tsconfig.public.json` (part of
+  `pnpm typecheck`); its pure parts (`key-map.js`, `columns.js`, `swipe.js`) have tests next to them.
+  There is no build step: the server reads the files as they are, so edits show on reload.
+- Content edits show on the next page load, as they do for the next SSH session.
+
 ## Editing the CV
 
 Everything is in `content/`, read on every connection (no restart needed):
@@ -56,7 +76,7 @@ pnpm check        # typecheck, lint, format check and tests: run before opening 
 CI runs the same: `release.yaml` typechecks and tests, `check.yaml` lints and checks formatting.
 
 Keys: ←/→ (or h/l, Tab) sections, 1–9 jump, ↑/↓ (or j/k) scroll, space/b page, g/G top/bottom,
-q to quit.
+q to quit. The web page uses the same keys.
 
 ## Code layout and conventions
 
@@ -76,6 +96,9 @@ src/
   content/           reads the Markdown in CONTENT_DIR
   ui/                the Ink app, the only place with JSX: components/, hooks/, and
                      rendering/ (Markdown and the banner to ANSI)
+  web/               the web page: the CV as HTML (ANSI to classed spans), the page template
+                     and the /assets resolver
+public/              the page's browser scripts and stylesheet, served as they are
 ```
 
 Dependencies point one way: `ssh` → `cv-session` → `terminal`, `content`, `ui`.
@@ -110,7 +133,8 @@ import order.
 
 Environment variables, all optional. They are validated at startup: an invalid value stops the
 server with a message naming the variable, and an empty value counts as unset (the default applies).
-Ports must be 0 to 65535; the timeouts and `MAX_SESSIONS` must be at least 1. `CONTENT_DIR` is also
+Ports must be 0 to 65535 (`HEALTH_PORT`, the old name of `HTTP_PORT`, is still read when `HTTP_PORT`
+is unset, with a deprecation warning); the timeouts and `MAX_SESSIONS` must be at least 1. `CONTENT_DIR` is also
 read once at startup, so a missing or unreadable directory stops the server there rather than at
 the first visitor.
 
@@ -118,7 +142,7 @@ the first visitor.
 | --------------------------- | -------------------- | ----------------------------------------------------------------------------- |
 | `HOST`                      | `0.0.0.0`            | Address both servers listen on                                                |
 | `PORT`                      | `2222`               | SSH port                                                                      |
-| `HEALTH_PORT`               | `8080`               | HTTP `GET /health` and `GET /ready`                                           |
+| `HTTP_PORT`                 | `8080`               | HTTP: the web page, `GET /health` and `GET /ready`                            |
 | `HOST_KEY_PATH`             | `.data/host_ed25519` | Server host key; generated if missing                                         |
 | `CONTENT_DIR`               | `content`            | Markdown directory                                                            |
 | `IDLE_TIMEOUT_SECONDS`      | `180`                | Disconnect after this long without a keypress                                 |
