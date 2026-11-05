@@ -26,3 +26,10 @@ test('anything that is not a plain file name in public/ does not resolve', () =>
     assert.equal(resolveAsset(pathname), undefined, pathname);
   }
 });
+
+test('the favicon files resolve with image content types', () => {
+  assert.equal(resolveAsset('/assets/favicon.svg')?.contentType, 'image/svg+xml');
+  assert.equal(resolveAsset('/assets/apple-touch-icon.png')?.contentType, 'image/png');
+  assert.ok(existsSync(resolveAsset('/assets/favicon.svg')?.filePath ?? ''));
+  assert.ok(existsSync(resolveAsset('/assets/apple-touch-icon.png')?.filePath ?? ''));
+});

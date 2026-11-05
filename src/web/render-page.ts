@@ -1,12 +1,13 @@
 import type { CvSectionView, CvView } from './cv-view.types.js';
 import { GOODBYE_MESSAGES } from '../cv-session/goodbye-messages.constants.js';
 import { escapeHtml } from './escape-html.js';
-import { SSH_HOST } from './web.constants.js';
+import { PAGE_TITLE, SSH_HOST } from './web.constants.js';
 
 /** The whole CV as one document: readable without JavaScript, which only adds the TUI behaviour. */
 export function renderPage(view: CvView): string {
   const name = escapeHtml(view.name);
-  const title = name ? `${name} — ssh ${SSH_HOST}` : `ssh ${SSH_HOST}`;
+  // Link previews name the person; the browser tab names the project.
+  const previewTitle = name ? `${name} — ssh ${SSH_HOST}` : `ssh ${SSH_HOST}`;
   // taglineHtml is already escaped: dropping the tags leaves attribute-safe text.
   const description = view.taglineHtml
     .replace(/<[^>]*>/g, '')
@@ -18,13 +19,15 @@ export function renderPage(view: CvView): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title}</title>
+<title>${PAGE_TITLE}</title>
 <meta name="description" content="${description}">
 <meta property="og:type" content="website">
-<meta property="og:title" content="${title}">
+<meta property="og:title" content="${previewTitle}">
 <meta property="og:description" content="${description}">
 <meta name="theme-color" content="#0d1117">
 <script src="/assets/boot.js"></script>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
 <link rel="stylesheet" href="/assets/style.css">
 <script type="module" src="/assets/app.js"></script>
 </head>

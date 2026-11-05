@@ -28,7 +28,7 @@ test('every section is in the page, with its title and rendered body', () => {
 
 test('the title and preview tags come from the name and the tagline text', () => {
   const page = renderPage(view);
-  assert.ok(page.includes('<title>Ada Lovelace — ssh cv.pedromartins.dev.br</title>'));
+  assert.ok(page.includes('<title>cv-ssh: my CV on TUI</title>'));
   assert.ok(page.includes('<meta property="og:title" content="Ada Lovelace — ssh cv.pedromartins.dev.br">'));
   assert.ok(page.includes('<meta name="description" content="Analyst · London">'));
   assert.ok(page.includes('<meta property="og:description" content="Analyst · London">'));
@@ -99,4 +99,10 @@ test('after quitting, the end screen says how to come back', () => {
       '<p class="come-back">If you want to go back, click Reconnect below or try it yourself in a real terminal:</p>',
     ),
   );
+});
+
+test('the favicon is the terminal-CV icon, with a PNG for home screens', () => {
+  const page = renderPage(view);
+  assert.ok(page.includes('<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">'));
+  assert.ok(page.includes('<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">'));
 });

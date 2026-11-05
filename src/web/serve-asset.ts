@@ -12,11 +12,13 @@ const PUBLIC_DIR = fileURLToPath(new URL('../../public/', import.meta.url));
 const CONTENT_TYPES: Record<string, string> = {
   js: 'text/javascript; charset=utf-8',
   css: 'text/css; charset=utf-8',
+  svg: 'image/svg+xml',
+  png: 'image/png',
 };
 
 /** Only plain file names directly in public/: no subfolders, no dots, so no way out of it. */
 export function resolveAsset(pathname: string): Asset | undefined {
-  const match = /^\/assets\/([a-z0-9-]+)\.(js|css)$/.exec(pathname);
+  const match = /^\/assets\/([a-z0-9-]+)\.(js|css|svg|png)$/.exec(pathname);
   if (!match?.[1] || !match[2]) return undefined;
   const contentType = CONTENT_TYPES[match[2]];
   if (!contentType) return undefined;
