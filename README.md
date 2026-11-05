@@ -30,7 +30,8 @@ The HTTP port (`HTTP_PORT`, 8080) also serves the CV as a web page that acts out
 `GET /` is the whole CV, rendered by the same Markdown pipeline as the TUI at 80 columns, so it
 reads without JavaScript (link previews, crawlers, print). The page's script then re-renders it for
 the window's width from `GET /cv.json?cols=N` and adds the TUI's keys, tabs and touch gestures.
-Scripts and the stylesheet are plain files in `public/`, served from `/assets/`.
+Scripts, the stylesheet and the icons (`favicon.svg`, `apple-touch-icon.png`) are plain files in
+`public/`, served from `/assets/`.
 
 - On wide screens the terminal opens as a window, maximizes to the whole viewport after a second,
   then types `ssh cv.pedromartins.dev.br` and "connects" (phones go straight to the typing). Any
