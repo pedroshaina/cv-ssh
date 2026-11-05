@@ -200,14 +200,17 @@ html.js .window {
   white-space: nowrap;
 }
 
+/* Ink's round border is a row of box-drawing characters above and below the tabs and a column on
+   each side, each line drawn through the middle of its cell, plus paddingX={1}. So: three rows
+   tall, the line half a cell in from the edge, the tabs a full row and two columns in. */
 .tabbar {
   display: flex;
   flex-wrap: wrap;
   column-gap: 1ch;
-  margin: 0;
-  padding: 0 1ch;
+  margin: 0.5lh 0.5ch;
+  padding: calc(0.5lh - 1px) calc(1.5ch - 1px);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 0.5ch;
   flex-shrink: 0;
 }
 
